@@ -1,0 +1,9 @@
+node_modules
+dist
+.npm-cache
+.playwright
+.expo
+.expo-local
+scaffold
+test-results
+package-lock.json
