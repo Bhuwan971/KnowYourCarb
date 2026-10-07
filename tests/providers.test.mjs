@@ -62,6 +62,38 @@ test('one scan deadline covers stalled provider headers and body reads for both 
   }
 });
 
+test('the default deadline allows a slow provider response to finish after a minute', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  for (const provider of ['openrouter', 'gemini']) {
+    let release;
+    let upstreamSignal;
+    const pending = new Promise((resolve) => {
+      release = resolve;
+    });
+    const run = estimate('image', {
+      provider,
+      apiKey: 'test',
+      model: 'vision-model',
+      fetchImpl: async (_, { signal }) => {
+        upstreamSignal = signal;
+        await pending;
+        return provider === 'openrouter'
+          ? completion(JSON.stringify(meal))
+          : Response.json({
+              status: 'completed',
+              steps: [
+                { type: 'model_output', content: [{ type: 'text', text: JSON.stringify(meal) }] },
+              ],
+            });
+      },
+    });
+    t.mock.timers.tick(60_000);
+    assert.equal(upstreamSignal.aborted, false);
+    release();
+    assert.deepEqual(await run, meal);
+  }
+});
+
 test('cancelling a scan stops waiting even if the provider ignores abort', async () => {
   const controller = new AbortController();
   let upstreamSignal;

@@ -81,7 +81,7 @@ The launcher starts Expo and the service together and automatically uses your co
 
 Missing keys, exhausted credits, unrecognizable food, and service errors show a clear retry/manual fallback. A real provider scan still requires your Infisical project, login, and OpenRouter key. Tests use mocked responses; no credentials or provider credits are used by the test suites.
 
-Scans use low reasoning effort and retain nutrition validation. The service gives the entire estimate, including one nutrition correction, a shared 35-second deadline; the app stops waiting after 45 seconds, including photo preparation and upload. Cancelled scans stop upstream work and late results cannot replace manual edits. Restart the photo service after changing its code or configuration.
+Scans use low reasoning effort and retain nutrition validation. The service gives the entire estimate, including one nutrition correction, a shared 90-second deadline; the app stops waiting after 120 seconds, including photo preparation and upload. This leaves room for slower provider responses and a correction pass. Cancelled scans stop upstream work and late results cannot replace manual edits. Restart the photo service after changing its code or configuration.
 
 The service uses the [OpenRouter Chat Completions API](https://openrouter.ai/docs/guides/overview/multimodal/image-understanding) or the [Gemini Interactions API](https://ai.google.dev/api/interactions-api). It validates input and nutrition results, limits request size and rate, and times out requests. Gemini interaction storage is disabled; OpenRouter provider routing disallows data collection. These settings are not a guarantee of zero retention across every service.
 

@@ -2,7 +2,8 @@ import { photoBase64 } from './photos';
 import { FoodItem, nutrientFields, uid } from './model';
 import { withAbort } from './abort';
 export const analysisUrl = process.env.EXPO_PUBLIC_ANALYSIS_URL?.replace(/\/$/, '');
-export const scanTimeoutMs = 45_000;
+// Allow photo preparation/upload in addition to the service's 90-second deadline.
+export const scanTimeoutMs = 120_000;
 export type Analysis = { title: string; items: FoodItem[]; uncertainty: string };
 export function analyzePhoto(uri: string, signal: AbortSignal): Promise<Analysis> {
   return withAbort(signal, () => requestAnalysis(uri, signal));

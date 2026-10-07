@@ -166,6 +166,29 @@ test('incomplete calorie results fall back to editable manual nutrition', async 
   await expect(page.getByRole('button', { name: 'Open Manual quinoa', exact: true })).toBeVisible();
 });
 
+test('a slow scan can finish after the previous 45-second cutoff', async ({ page }) => {
+  await page.clock.install();
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let uploads = 0;
+  await page.route('**/analyze', async (route) => {
+    uploads += 1;
+    await pending;
+    await route.fulfill({ json: estimate });
+  });
+  await importPhoto(page);
+  await expect.poll(() => uploads).toBe(1);
+  await page.clock.fastForward(60_000);
+  await expect(page.getByText('Reading your plate…')).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  release();
+  await expect(page.getByText(estimate.title, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save memory', exact: true })).toBeEnabled();
+  expect(uploads).toBe(1);
+});
+
 test('a stalled scan times out, preserves manual edits and allows a fresh retry', async ({
   page,
 }) => {
@@ -186,7 +209,7 @@ test('a stalled scan times out, preserves manual edits and allows a fresh retry'
   await expect(
     page.getByText('Still waiting for your estimate. You can review manually below.'),
   ).toBeVisible();
-  await page.clock.fastForward(30_001);
+  await page.clock.fastForward(105_001);
   await expect(page.getByRole('alert')).toContainText('That estimate took too long.');
   await expect(page.getByText('Reading your plate…')).toHaveCount(0);
   await expect(page.getByRole('img', { name: 'Food photo', exact: true })).toBeVisible();

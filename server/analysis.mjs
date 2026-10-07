@@ -278,7 +278,9 @@ async function estimateOpenRouter(image, { apiKey, model, fetchImpl, correction,
   return parseEstimate(choice.message.content);
 }
 
-export const estimateTimeoutMs = 35_000;
+// A meal may need two complete vision requests when nutrition needs correction.
+// Keep this below the client's budget to leave time for preparation and upload.
+export const estimateTimeoutMs = 90_000;
 export async function estimate(
   image,
   { signal: callerSignal, timeoutMs = estimateTimeoutMs, ...options },

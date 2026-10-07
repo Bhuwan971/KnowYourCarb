@@ -164,6 +164,47 @@ test('one correction pass repairs inconsistent estimates; a second failure is re
   }
 });
 
+test('a nutrition correction can finish after the previous 35-second cutoff', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let started;
+  const correctionStarted = new Promise((resolve) => {
+    started = resolve;
+  });
+  let release;
+  const pending = new Promise((resolve) => {
+    release = resolve;
+  });
+  let calls = 0;
+  let upstreamSignal;
+  const run = estimate('image', {
+    provider: 'openrouter',
+    apiKey: 'test',
+    model: 'vision-model',
+    fetchImpl: async (_, { signal }) => {
+      upstreamSignal = signal;
+      calls++;
+      if (calls === 2) {
+        started();
+        await pending;
+      }
+      const data = response([
+        calls === 1
+          ? { name: 'Chicken', portion: '100 g', carbs: 156, calories: 624, portionGrams: 100 }
+          : matched('chicken-breast-roasted', 100),
+      ]);
+      return Response.json({
+        choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(data) } }],
+      });
+    },
+  });
+  await correctionStarted;
+  t.mock.timers.tick(60_000);
+  assert.equal(upstreamSignal.aborted, false);
+  release();
+  assert.equal((await run).items[0].carbs, 0);
+  assert.equal(calls, 2);
+});
+
 test('the correction pass shares the original deadline instead of starting a new timer', async () => {
   const signals = [];
   const invalid = response([
