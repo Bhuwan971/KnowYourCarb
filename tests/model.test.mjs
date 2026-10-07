@@ -77,3 +77,61 @@ test('old journals load without calories; invalid supplied calories cannot save'
     assert.equal(isMeal(meal), false);
   }
 });
+
+test('extra nutrients scale with servings, preserve zero and require complete totals', async () => {
+  const { totalNutrient, totalCarbsRange } = await import('../src/lib/model.ts');
+  assert.equal(totalNutrient([{ sugar: 0, servings: 2 }], 'sugar'), 0);
+  assert.equal(totalNutrient([{ sugar: 4, servings: 1.5 }, { servings: 1 }], 'sugar'), null);
+  assert.equal(
+    totalNutrient(
+      [
+        { protein: 31, servings: 1.5 },
+        { protein: 6.3, servings: 1 },
+      ],
+      'protein',
+    ),
+    52.8,
+  );
+  assert.deepEqual(totalCarbsRange([{ carbsRange: { min: 20, max: 30 }, servings: 1.5 }]), {
+    min: 30,
+    max: 45,
+  });
+  assert.equal(totalCarbsRange([{ carbs: 20, servings: 1 }]), null);
+});
+
+test('confirmed weight scales known nutrition consistently without rounding drift or inventing micros', async () => {
+  const { withPortionWeight } = await import('../src/lib/model.ts');
+  let item = {
+    ...validMeal().items[0],
+    carbs: 28.2,
+    calories: 130,
+    protein: 2.69,
+    portionGrams: 100,
+    carbsRange: { min: 20, max: 35 },
+  };
+  for (const grams of [1, 15, 150, 100]) item = withPortionWeight(item, grams);
+  assert.equal(item.carbs, 28.2);
+  assert.equal(item.calories, 130);
+  assert.equal(item.sodium, undefined);
+  assert.equal(item.carbsRange, undefined);
+  assert.equal(item.servings, 1.5);
+  assert.equal(withPortionWeight(item, 0), item);
+});
+
+test('journals accept absent nutrients but reject malformed or inconsistent supplied values', () => {
+  for (const patch of [
+    { sugar: -1 },
+    { sodium: '100' },
+    { iron: null },
+    { fat: Infinity },
+    { sugar: 30 },
+    { sugar: 4, addedSugar: 10 },
+    { fat: 3, saturatedFat: 5 },
+    { portionGrams: -10 },
+  ]) {
+    const meal = validMeal();
+    Object.assign(meal.items[0], patch);
+    assert.ok(validateMeal(meal));
+    assert.equal(isMeal(meal), false);
+  }
+});

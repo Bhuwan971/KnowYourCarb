@@ -1,5 +1,5 @@
 import { photoBase64 } from './photos';
-import { FoodItem, uid } from './model';
+import { FoodItem, nutrientFields, uid } from './model';
 export const analysisUrl = process.env.EXPO_PUBLIC_ANALYSIS_URL?.replace(/\/$/, '');
 export type Analysis = { title: string; items: FoodItem[]; uncertainty: string };
 export async function analyzePhoto(uri: string, signal: AbortSignal): Promise<Analysis> {
@@ -45,7 +45,24 @@ export async function analyzePhoto(uri: string, signal: AbortSignal): Promise<An
         typeof i.calories !== 'number' ||
         !Number.isFinite(i.calories) ||
         i.calories < 0 ||
-        i.calories > 20000,
+        i.calories > 20000 ||
+        nutrientFields.some(
+          ({ key, max }) =>
+            i[key] != null &&
+            (typeof i[key] !== 'number' ||
+              !Number.isFinite(i[key]) ||
+              i[key]! < 0 ||
+              i[key]! > max),
+        ) ||
+        (i.portionGrams != null &&
+          (!Number.isFinite(i.portionGrams) || i.portionGrams <= 0 || i.portionGrams > 10000)) ||
+        (i.carbsRange != null &&
+          (!Number.isFinite(i.carbsRange.min) ||
+            !Number.isFinite(i.carbsRange.max) ||
+            i.carbsRange.min < 0 ||
+            i.carbsRange.max > 2000 ||
+            i.carbsRange.min > i.carbs ||
+            i.carbsRange.max < i.carbs)),
     )
   )
     throw new Error('The estimate was incomplete. Please try again or add your own values.');
@@ -53,6 +70,16 @@ export async function analyzePhoto(uri: string, signal: AbortSignal): Promise<An
     title: data.title,
     uncertainty: data.uncertainty,
     items: data.items.map((i: FoodItem) => ({
+      ...Object.fromEntries(
+        nutrientFields.flatMap(({ key }) => (typeof i[key] === 'number' ? [[key, i[key]]] : [])),
+      ),
+      portionGrams: i.portionGrams ?? undefined,
+      carbsRange: i.carbsRange ?? undefined,
+      nutritionBasis: i.nutritionBasis,
+      referenceId: i.referenceId,
+      referenceDescription: i.referenceDescription,
+      fdcId: i.fdcId,
+      nutritionPer100g: i.nutritionPer100g,
       id: uid(),
       name: i.name,
       portion: i.portion,

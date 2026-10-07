@@ -11,17 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import {
-  ArrowLeft,
-  Check,
-  Minus,
-  Plus,
-  Save,
-  ScanLine,
-  Flame,
-  Trash2,
-  X,
-} from 'lucide-react-native';
+import { ArrowLeft, Minus, Plus, Save, ScanLine, Trash2, X } from 'lucide-react-native';
 import {
   Meal,
   FoodItem,
@@ -29,6 +19,10 @@ import {
   sourceLabel,
   totalCarbs,
   totalCalories,
+  nutrientFields,
+  totalNutrient,
+  totalCarbsRange,
+  withPortionWeight,
   uid,
   validateMeal,
 } from '../lib/model';
@@ -48,7 +42,9 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
         (!!initial.photo && !!analysisUrl && initial.source !== 'ai')),
   );
   const [saving, setSaving] = useState(false);
-  const [checked, setChecked] = useState(existing || initial.source !== 'ai');
+  const [editing, setEditing] = useState(initial.source !== 'ai' && initial.source !== 'sample');
+  const [moreNutrition, setMoreNutrition] = useState(false);
+  const [expandedFood, setExpandedFood] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -62,12 +58,12 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
     setScanning(true);
     const controller = new AbortController();
     abort.current = controller;
-    const timeout = setTimeout(() => controller.abort('timeout'), 45000);
+    const timeout = setTimeout(() => controller.abort('timeout'), 85000);
     try {
       const result = await analyzePhoto(photo, controller.signal);
       if (mounted.current && !controller.signal.aborted && abort.current === controller) {
         setMeal((m) => ({ ...m, ...result, source: 'ai' }));
-        setChecked(false);
+        setEditing(false);
       }
     } catch (e) {
       if (
@@ -113,7 +109,27 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
   }, [existing, initial.source, initial.photo, analyze]);
   const patch = (values: Partial<Meal>) => setMeal((m) => ({ ...m, ...values }));
   const itemPatch = (id: string, values: Partial<FoodItem>) =>
-    setMeal((m) => ({ ...m, items: m.items.map((i) => (i.id === id ? { ...i, ...values } : i)) }));
+    setMeal((m) => ({
+      ...m,
+      items: m.items.map((item) => {
+        if (item.id !== id) return item;
+        const next = { ...item, ...values };
+        const weightChanged =
+          values.portionGrams !== undefined && values.portionGrams !== item.portionGrams;
+        const nutritionChanged = (
+          ['name', 'portion', 'carbs', 'calories', ...nutrientFields.map(({ key }) => key)] as const
+        ).some((key) => key in values && values[key] !== item[key]);
+        if (nutritionChanged && !weightChanged) {
+          next.nutritionBasis = 'estimate';
+          next.referenceId = undefined;
+          next.referenceDescription = undefined;
+          next.fdcId = undefined;
+          next.nutritionPer100g = undefined;
+          next.carbsRange = undefined;
+        }
+        return next;
+      }),
+    }));
   const close = () => {
     if (saving) return;
     abort.current?.abort('cancelled');
@@ -161,7 +177,12 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
   };
   const total = totalCarbs(meal.items);
   const calories = totalCalories(meal.items);
-  const valid = validateMeal(meal) === null && checked;
+  const valid = validateMeal(meal) === null;
+  const range = totalCarbsRange(meal.items);
+  const nutritionValue = (key: (typeof nutrientFields)[number]['key'], unit: string) => {
+    const value = totalNutrient(meal.items, key);
+    return value === null ? '—' : `${value} ${unit}`;
+  };
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
       <KeyboardAvoidingView
@@ -177,10 +198,10 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
               disabled={saving}
             />
             <Type style={{ fontFamily: f.displayBold, fontSize: 20 }}>
-              {scanning ? 'scanning your plate.' : existing ? 'a little memory.' : 'a little snap.'}
+              {scanning ? 'scanning your plate.' : 'your meal.'}
             </Type>
           </View>
-          <Chip icon={ScanLine}>{scanning ? 'SCANNING' : sourceLabel[meal.source]}</Chip>
+          <Chip>{scanning ? 'SCANNING' : sourceLabel[meal.source]}</Chip>
         </View>
         <ScrollView
           keyboardShouldPersistTaps="handled"
@@ -197,412 +218,458 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                   abort.current?.abort('cancelled');
                   abort.current = null;
                   setScanning(false);
+                  setEditing(true);
                 }}
                 style={{ alignSelf: 'center', marginTop: 15 }}
               />
             </>
           ) : (
-            <>
-              <View style={{ flexDirection: split ? 'row' : 'column', gap: split ? 35 : 24 }}>
-                <View style={{ flex: split ? 1 : undefined }}>
-                  <View style={[s.photo, { height: split ? 530 : 300 }]}>
-                    <FoodPhoto uri={meal.photo} style={StyleSheet.absoluteFill} />
-                    <View style={s.photoChip}>
-                      <Chip color="rgba(255,255,255,0.95)" textColor={c.ink}>
-                        {meal.mealType} ·{' '}
-                        {new Date(meal.createdAt).toLocaleTimeString([], {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        })}
-                      </Chip>
-                    </View>
-                    <View style={s.photoSticker}>
-                      <Type
-                        style={{
-                          fontFamily: f.displayBold,
-                          fontSize: 48,
-                          lineHeight: 53,
-                          letterSpacing: -2,
-                        }}
-                      >
-                        {Number.isFinite(total) ? total : '—'}
-                        <Type style={{ fontSize: 23 }}>g</Type>
-                      </Type>
-                      <Type style={{ fontSize: 12, color: c.muted }}>
-                        total carbs · {sourceLabel[meal.source].toLowerCase()}
-                      </Type>
-                      <View
-                        style={{ flexDirection: 'row', gap: 5, alignItems: 'center', marginTop: 8 }}
-                      >
-                        <Flame size={14} color={c.purple} />
-                        <Type style={{ fontSize: 11, color: c.purple }}>
-                          {calories === null ? 'Add calories below' : `${calories} kcal`}
-                        </Type>
-                      </View>
-                    </View>
+            <View style={{ flexDirection: split ? 'row' : 'column', gap: 22 }}>
+              {meal.photo && (
+                <View style={[s.photo, { flex: split ? 1 : undefined, height: split ? 500 : 265 }]}>
+                  <FoodPhoto uri={meal.photo} style={StyleSheet.absoluteFill} />
+                  <View style={s.photoChip}>
+                    <Chip color="rgba(255,255,255,0.95)" textColor={c.ink}>
+                      {meal.mealType}
+                    </Chip>
                   </View>
-                  <Type kind="small" style={{ marginTop: 12, textAlign: 'center' }}>
-                    {meal.source === 'sample'
-                      ? 'Sample memories don’t count toward your daily totals.'
-                      : 'The photo, the portions, the moment. All saved together.'}
-                  </Type>
-                </View>
-                <View style={{ flex: split ? 1.1 : undefined, gap: 21 }}>
-                  <View>
+                  <View style={s.photoSticker}>
                     <Type
                       style={{
-                        color: c.purple,
-                        fontSize: 10,
-                        letterSpacing: 1.7,
-                        fontFamily: f.bold,
-                        marginBottom: 6,
+                        fontFamily: f.displayBold,
+                        fontSize: 38,
+                        lineHeight: 44,
+                        letterSpacing: -1,
                       }}
                     >
-                      THE LITTLE DETAILS
+                      {meal.source === 'ai' ? '≈ ' : ''}
+                      {Number.isFinite(total) ? total : '—'}
+                      <Type style={{ fontSize: 20 }}> g</Type>
                     </Type>
-                    <Type kind="title">
-                      {existing
-                        ? 'Remember this bite?'
-                        : meal.source === 'ai'
-                          ? 'Your scan is ready.'
-                          : 'Make it yours.'}
-                    </Type>
-                    <Type kind="small" style={{ marginTop: 7 }}>
-                      {meal.source === 'ai'
-                        ? 'Calories, carbs and portions are filled in. Tap any detail to adjust it before saving.'
-                        : 'Check the portions, carbs and calories before you save.'}
+                    <Type kind="small">total carbs</Type>
+                    <Type style={{ fontSize: 12, color: c.purple }}>
+                      {calories === null ? 'Calories unknown' : `${calories} kcal`}
                     </Type>
                   </View>
-                  {meal.photo && meal.source !== 'sample' && (
-                    <View style={s.aiCard}>
-                      <ScanLine size={22} color={c.purple} />
-                      <View style={{ flex: 1, gap: 8 }}>
-                        <Type style={{ fontSize: 13, fontFamily: f.bold }}>
-                          {scanError
-                            ? 'AI scan couldn’t finish'
-                            : analysisUrl
-                              ? meal.source === 'ai'
-                                ? 'Estimated from your photo'
-                                : 'Try another scan'
-                              : 'Your photo is ready to keep'}
-                        </Type>
-                        {scanError && (
-                          <Type accessibilityRole="alert" style={{ color: c.error, fontSize: 13 }}>
-                            {scanError}
-                          </Type>
-                        )}
-                        <Type kind="small">
-                          {analysisUrl
-                            ? 'Photo scans use the AI service. You can edit every value; portions and hidden ingredients may affect the estimate.'
-                            : 'Automatic photo estimates aren’t connected yet. Add nutrition from a label below, or connect the photo service in the setup guide.'}
-                        </Type>
-                        {analysisUrl && (
-                          <Button
-                            label={meal.source === 'ai' ? 'Scan again' : 'Retry scan'}
-                            variant="secondary"
-                            icon={ScanLine}
-                            onPress={() => {
-                              tap();
-                              if (meal.photo) void analyze(meal.photo);
-                            }}
-                          />
-                        )}
-                      </View>
-                    </View>
-                  )}
-                  {meal.uncertainty && (
-                    <View style={s.uncertainty}>
-                      <Type kind="small" style={{ color: '#78674C' }}>
-                        {meal.uncertainty}
+                </View>
+              )}
+              <View style={{ flex: split ? 1 : undefined, gap: 16 }}>
+                {!!meal.title && (
+                  <Type style={{ fontFamily: f.displayBold, fontSize: 23, lineHeight: 29 }}>
+                    {meal.title}
+                  </Type>
+                )}
+                {!meal.photo && (
+                  <Type style={{ fontFamily: f.displayBold, fontSize: 30 }}>
+                    {Number.isFinite(total) ? total : '—'} g carbs ·{' '}
+                    {calories === null ? '—' : calories} kcal
+                  </Type>
+                )}
+                {range && range.min !== range.max && (
+                  <Type kind="small">
+                    Estimated carbs: {range.min}–{range.max} g
+                  </Type>
+                )}
+                <View style={s.macros}>
+                  {(['protein', 'fat'] as const).map((key) => (
+                    <View key={key} style={{ flex: 1, gap: 2 }}>
+                      <Type kind="small">{key === 'protein' ? 'Protein' : 'Fat'}</Type>
+                      <Type style={{ fontFamily: f.bold, fontSize: 20 }}>
+                        {nutritionValue(key, 'g')}
                       </Type>
                     </View>
-                  )}
-                  <Field
-                    label="Memory name"
-                    value={meal.title}
-                    onChangeText={(title) => patch({ title })}
-                    placeholder="Something delicious…"
-                    maxLength={100}
-                  />
-                  <View>
-                    <Type kind="label" style={{ marginBottom: 9 }}>
-                      A little moment for
-                    </Type>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                      {(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as MealType[]).map((type) => (
-                        <Pressable
-                          key={type}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: meal.mealType === type }}
-                          onPress={() => patch({ mealType: type })}
-                          style={[
-                            s.pill,
-                            meal.mealType === type && {
-                              backgroundColor: c.lavender,
-                              borderColor: '#D3C5EE',
-                            },
-                          ]}
-                        >
-                          <Type
-                            style={{
-                              fontSize: 12,
-                              color: meal.mealType === type ? c.purple : c.muted,
-                              fontFamily: f.medium,
-                            }}
-                          >
-                            {type}
-                          </Type>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-                  {meal.source !== 'sample' && meal.source !== 'ai' && (
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      {(['manual', 'label'] as const).map((source) => (
-                        <Pressable
-                          key={source}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: meal.source === source }}
-                          onPress={() => patch({ source })}
-                          style={[
-                            s.pill,
-                            meal.source === source && { backgroundColor: c.lavender },
-                          ]}
-                        >
-                          <Type
-                            style={{
-                              fontSize: 12,
-                              color: meal.source === source ? c.purple : c.muted,
-                            }}
-                          >
-                            {sourceLabel[source]}
-                          </Type>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
-                  <View style={{ gap: 12 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <Type style={{ fontFamily: f.bold }}>What’s on your plate?</Type>
-                      <Type kind="small">Total carbs, not net carbs</Type>
-                    </View>
-                    {meal.items.map((item, index) => (
-                      <View key={item.id} style={s.foodRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <View style={s.number}>
-                            <Type style={{ fontSize: 11, fontFamily: f.bold, color: c.purple }}>
-                              {String(index + 1).padStart(2, '0')}
-                            </Type>
-                          </View>
-                          <TextInput
-                            accessibilityLabel={`Food ${index + 1} name`}
-                            placeholder="Food name"
-                            placeholderTextColor={c.muted}
-                            value={item.name}
-                            onChangeText={(name) => itemPatch(item.id, { name })}
-                            maxLength={100}
-                            style={s.foodName}
-                          />
-                          <IconButton
-                            label={`Remove food ${index + 1}`}
-                            icon={X}
-                            onPress={() =>
-                              patch({ items: meal.items.filter((i) => i.id !== item.id) })
-                            }
-                            style={{ width: 32, height: 32, backgroundColor: 'transparent' }}
-                          />
-                        </View>
-                        <Field
-                          label={`Food ${index + 1} portion`}
-                          value={item.portion}
-                          onChangeText={(portion) => itemPatch(item.id, { portion })}
-                          placeholder="e.g. ½ cup or 100 g"
-                          maxLength={80}
-                        />
-                        <Field
-                          label={`Food ${index + 1} calories (kcal / portion)`}
-                          keyboardType="decimal-pad"
-                          value={Number.isFinite(item.calories) ? String(item.calories) : ''}
-                          onChangeText={(value) =>
-                            itemPatch(item.id, {
-                              calories: value.trim() ? Number(value.replace(',', '.')) : undefined,
-                            })
-                          }
-                          placeholder="Optional · from a scan or nutrition label"
-                        />
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                          <Field
-                            inline
-                            label={`Food ${index + 1} carbs (g / portion)`}
-                            keyboardType="decimal-pad"
-                            value={Number.isFinite(item.carbs) ? String(item.carbs) : ''}
-                            onChangeText={(value) =>
-                              itemPatch(item.id, {
-                                carbs: value.trim() ? Number(value.replace(',', '.')) : NaN,
-                              })
-                            }
-                            placeholder="Carbs in grams"
-                          />
-                          <Field
-                            inline
-                            label={`Food ${index + 1} portions eaten`}
-                            keyboardType="decimal-pad"
-                            value={Number.isFinite(item.servings) ? String(item.servings) : ''}
-                            onChangeText={(value) =>
-                              itemPatch(item.id, {
-                                servings: value.trim() ? Number(value.replace(',', '.')) : NaN,
-                              })
-                            }
-                            placeholder="e.g. 1.5"
-                          />
-                        </View>
+                  ))}
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="More nutrition"
+                  accessibilityState={{ expanded: moreNutrition }}
+                  onPress={() => setMoreNutrition(!moreNutrition)}
+                  style={s.detailToggle}
+                >
+                  <Type style={{ fontSize: 13, color: c.purple }}>
+                    More nutrition {moreNutrition ? '−' : '+'}
+                  </Type>
+                </Pressable>
+                {moreNutrition && (
+                  <View style={s.nutrients}>
+                    {nutrientFields
+                      .filter(({ key }) => key !== 'protein' && key !== 'fat')
+                      .map(({ key, label, unit }) => (
                         <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                          }}
+                          key={key}
+                          style={{ flexDirection: 'row', justifyContent: 'space-between' }}
                         >
-                          <Type kind="small">
-                            {Number.isFinite(item.carbs * item.servings)
-                              ? `${Math.round(item.carbs * item.servings * 10) / 10} g for this food`
-                              : 'Add a carb value to calculate'}
-                          </Type>
-                          <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center' }}>
-                            <IconButton
-                              label={`Half a portion less of food ${index + 1}`}
-                              icon={Minus}
-                              onPress={() =>
-                                itemPatch(item.id, {
-                                  servings: Math.max(0.5, (item.servings || 1) - 0.5),
-                                })
-                              }
-                              disabled={item.servings <= 0.5}
-                              style={s.stepper}
+                          <Type style={{ fontSize: 13 }}>{label}</Type>
+                          <Type style={{ fontSize: 13 }}>{nutritionValue(key, unit)}</Type>
+                        </View>
+                      ))}
+                    <Type kind="small">
+                      — means unknown. Sugar and fiber are included in total carbs.
+                    </Type>
+                    {meal.uncertainty && <Type kind="small">{meal.uncertainty}</Type>}
+                    {meal.items.some((item) => item.fdcId) && (
+                      <Type kind="small">USDA composition · estimated food match and portion</Type>
+                    )}
+                    {meal.source === 'sample' && (
+                      <Type kind="small">Samples don’t count toward daily totals.</Type>
+                    )}
+                    {meal.photo && meal.source !== 'sample' && analysisUrl && (
+                      <Button
+                        label={meal.source === 'ai' ? 'Scan again' : 'Retry scan'}
+                        variant="ghost"
+                        icon={ScanLine}
+                        onPress={() => {
+                          tap();
+                          void analyze(meal.photo!);
+                        }}
+                      />
+                    )}
+                  </View>
+                )}
+                {scanError && (
+                  <Type accessibilityRole="alert" style={{ color: c.error, fontSize: 13 }}>
+                    {scanError}
+                  </Type>
+                )}
+                {meal.photo &&
+                  meal.source !== 'sample' &&
+                  meal.source !== 'ai' &&
+                  (analysisUrl ? (
+                    <Button
+                      label="Retry scan"
+                      variant="secondary"
+                      icon={ScanLine}
+                      onPress={() => void analyze(meal.photo!)}
+                    />
+                  ) : (
+                    <Type kind="small">Add nutrition from a label.</Type>
+                  ))}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={editing ? 'Hide meal details' : 'Edit meal details'}
+                  accessibilityState={{ expanded: editing }}
+                  onPress={() => setEditing(!editing)}
+                  style={s.detailToggle}
+                >
+                  <Type style={{ fontSize: 13, fontFamily: f.bold }}>
+                    {editing ? 'Hide details −' : 'Edit details +'}
+                  </Type>
+                </Pressable>
+                {editing && (
+                  <View style={{ gap: 18 }}>
+                    <Field
+                      label="Memory name"
+                      value={meal.title}
+                      onChangeText={(title) => patch({ title })}
+                      placeholder="Something delicious…"
+                      maxLength={100}
+                    />
+                    <View>
+                      <Type kind="label" style={{ marginBottom: 9 }}>
+                        Meal
+                      </Type>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                        {(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as MealType[]).map((type) => (
+                          <Pressable
+                            key={type}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: meal.mealType === type }}
+                            onPress={() => patch({ mealType: type })}
+                            style={[
+                              s.pill,
+                              meal.mealType === type && {
+                                backgroundColor: c.lavender,
+                                borderColor: '#D3C5EE',
+                              },
+                            ]}
+                          >
+                            <Type
+                              style={{
+                                fontSize: 12,
+                                color: meal.mealType === type ? c.purple : c.muted,
+                                fontFamily: f.medium,
+                              }}
+                            >
+                              {type}
+                            </Type>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                    {meal.source !== 'sample' && meal.source !== 'ai' && (
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {(['manual', 'label'] as const).map((source) => (
+                          <Pressable
+                            key={source}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: meal.source === source }}
+                            onPress={() => patch({ source })}
+                            style={[
+                              s.pill,
+                              meal.source === source && { backgroundColor: c.lavender },
+                            ]}
+                          >
+                            <Type
+                              style={{
+                                fontSize: 12,
+                                color: meal.source === source ? c.purple : c.muted,
+                              }}
+                            >
+                              {sourceLabel[source]}
+                            </Type>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                    <View style={{ gap: 12 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Type style={{ fontFamily: f.bold }}>Foods</Type>
+                      </View>
+                      {meal.items.map((item, index) => (
+                        <View key={item.id} style={s.foodRow}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={s.number}>
+                              <Type style={{ fontSize: 11, fontFamily: f.bold, color: c.purple }}>
+                                {String(index + 1).padStart(2, '0')}
+                              </Type>
+                            </View>
+                            <TextInput
+                              accessibilityLabel={`Food ${index + 1} name`}
+                              placeholder="Food name"
+                              placeholderTextColor={c.muted}
+                              value={item.name}
+                              onChangeText={(name) => itemPatch(item.id, { name })}
+                              maxLength={100}
+                              style={s.foodName}
                             />
                             <IconButton
-                              label={`Half a portion more of food ${index + 1}`}
-                              icon={Plus}
+                              label={`Remove food ${index + 1}`}
+                              icon={X}
                               onPress={() =>
-                                itemPatch(item.id, {
-                                  servings: Math.min(100, (item.servings || 1) + 0.5),
-                                })
+                                patch({ items: meal.items.filter((i) => i.id !== item.id) })
                               }
-                              style={s.stepper}
+                              style={{ width: 32, height: 32, backgroundColor: 'transparent' }}
                             />
                           </View>
+                          <Field
+                            label={`Food ${index + 1} portion`}
+                            value={item.portion}
+                            onChangeText={(portion) => itemPatch(item.id, { portion })}
+                            placeholder="e.g. ½ cup or 100 g"
+                            maxLength={80}
+                          />
+                          {item.portionGrams !== undefined && (
+                            <Field
+                              label={`Food ${index + 1} weight (g)`}
+                              keyboardType="decimal-pad"
+                              value={
+                                Number.isFinite(item.portionGrams) ? String(item.portionGrams) : ''
+                              }
+                              onChangeText={(value) => {
+                                const grams = Number(value.replace(',', '.'));
+                                if (value.trim() && Number.isFinite(grams) && grams > 0)
+                                  itemPatch(item.id, withPortionWeight(item, grams));
+                              }}
+                            />
+                          )}
+                          <Field
+                            label={`Food ${index + 1} calories (kcal / portion)`}
+                            keyboardType="decimal-pad"
+                            value={Number.isFinite(item.calories) ? String(item.calories) : ''}
+                            onChangeText={(value) =>
+                              itemPatch(item.id, {
+                                calories: value.trim()
+                                  ? Number(value.replace(',', '.'))
+                                  : undefined,
+                              })
+                            }
+                            placeholder="Optional · from a scan or nutrition label"
+                          />
+                          <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <Field
+                              inline
+                              label={`Food ${index + 1} carbs (g / portion)`}
+                              keyboardType="decimal-pad"
+                              value={Number.isFinite(item.carbs) ? String(item.carbs) : ''}
+                              onChangeText={(value) =>
+                                itemPatch(item.id, {
+                                  carbs: value.trim() ? Number(value.replace(',', '.')) : NaN,
+                                  carbsRange: undefined,
+                                  nutritionBasis: 'estimate',
+                                  referenceId: undefined,
+                                  nutritionPer100g: undefined,
+                                  referenceDescription: undefined,
+                                  fdcId: undefined,
+                                })
+                              }
+                              placeholder="Carbs in grams"
+                            />
+                            <Field
+                              inline
+                              label={`Food ${index + 1} portions eaten`}
+                              keyboardType="decimal-pad"
+                              value={Number.isFinite(item.servings) ? String(item.servings) : ''}
+                              onChangeText={(value) =>
+                                itemPatch(item.id, {
+                                  servings: value.trim() ? Number(value.replace(',', '.')) : NaN,
+                                })
+                              }
+                              placeholder="e.g. 1.5"
+                            />
+                          </View>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`More nutrients for food ${index + 1}`}
+                            accessibilityState={{ expanded: expandedFood === item.id }}
+                            onPress={() =>
+                              setExpandedFood(expandedFood === item.id ? null : item.id)
+                            }
+                            style={{ minHeight: 44, justifyContent: 'center' }}
+                          >
+                            <Type style={{ fontSize: 13, color: c.purple }}>
+                              More nutrients {expandedFood === item.id ? '−' : '+'}
+                            </Type>
+                          </Pressable>
+                          {expandedFood === item.id && (
+                            <View style={{ gap: 12 }}>
+                              {nutrientFields.map(({ key, label, unit }) => (
+                                <Field
+                                  key={key}
+                                  label={`Food ${index + 1} ${label.toLowerCase()} (${unit} / portion)`}
+                                  keyboardType="decimal-pad"
+                                  value={Number.isFinite(item[key]) ? String(item[key]) : ''}
+                                  placeholder="Unknown · add from a label"
+                                  onChangeText={(value) =>
+                                    itemPatch(item.id, {
+                                      [key]: value.trim()
+                                        ? Number(value.replace(',', '.'))
+                                        : undefined,
+                                      nutritionBasis: 'estimate',
+                                      referenceId: undefined,
+                                      nutritionPer100g: undefined,
+                                      referenceDescription: undefined,
+                                      fdcId: undefined,
+                                    })
+                                  }
+                                />
+                              ))}
+                            </View>
+                          )}
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <Type kind="small">
+                              {Number.isFinite(item.carbs * item.servings)
+                                ? `${Math.round(item.carbs * item.servings * 10) / 10} g for this food`
+                                : 'Add a carb value to calculate'}
+                            </Type>
+                            <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center' }}>
+                              <IconButton
+                                label={`Half a portion less of food ${index + 1}`}
+                                icon={Minus}
+                                onPress={() =>
+                                  itemPatch(item.id, {
+                                    servings: Math.max(0.5, (item.servings || 1) - 0.5),
+                                  })
+                                }
+                                disabled={item.servings <= 0.5}
+                                style={s.stepper}
+                              />
+                              <IconButton
+                                label={`Half a portion more of food ${index + 1}`}
+                                icon={Plus}
+                                onPress={() =>
+                                  itemPatch(item.id, {
+                                    servings: Math.min(100, (item.servings || 1) + 0.5),
+                                  })
+                                }
+                                style={s.stepper}
+                              />
+                            </View>
+                          </View>
                         </View>
-                      </View>
-                    ))}
-                    <Button
-                      label="Add another food"
-                      icon={Plus}
-                      variant="ghost"
-                      onPress={() =>
-                        patch({
-                          items: [
-                            ...meal.items,
-                            { id: uid(), name: '', portion: '1 serving', carbs: NaN, servings: 1 },
-                          ],
-                        })
-                      }
+                      ))}
+                      <Button
+                        label="Add another food"
+                        icon={Plus}
+                        variant="ghost"
+                        onPress={() =>
+                          patch({
+                            items: [
+                              ...meal.items,
+                              {
+                                id: uid(),
+                                name: '',
+                                portion: '1 serving',
+                                carbs: NaN,
+                                servings: 1,
+                              },
+                            ],
+                          })
+                        }
+                      />
+                    </View>
+                    <Field
+                      label="A note to remember (optional)"
+                      value={meal.note}
+                      onChangeText={(note) => patch({ note })}
+                      placeholder="That little café around the corner…"
+                      multiline
+                      maxLength={1000}
+                      style={{ minHeight: 80 }}
                     />
                   </View>
-                  <Field
-                    label="A note to remember (optional)"
-                    value={meal.note}
-                    onChangeText={(note) => patch({ note })}
-                    placeholder="That little café around the corner…"
-                    multiline
-                    maxLength={1000}
-                    style={{ minHeight: 80 }}
-                  />
-                  {meal.source === 'ai' && (
-                    <Pressable
-                      accessibilityRole="checkbox"
-                      accessibilityLabel="I checked the portions and nutrition estimates"
-                      accessibilityState={{ checked }}
-                      onPress={() => setChecked(!checked)}
-                      style={{
-                        flexDirection: 'row',
-                        gap: 10,
-                        alignItems: 'center',
-                        paddingVertical: 8,
-                      }}
+                )}
+                {error && (
+                  <Type accessibilityRole="alert" style={{ color: c.error, fontSize: 13 }}>
+                    {error}
+                  </Type>
+                )}
+                {!valid && !error && <Type kind="small">{validateMeal(meal)}</Type>}
+                <Button
+                  label={existing ? 'Save changes' : 'Save memory'}
+                  icon={Save}
+                  busy={saving}
+                  disabled={!valid}
+                  onPress={() => void save()}
+                />
+                {existing &&
+                  (confirmDelete ? (
+                    <View
+                      style={{ gap: 9, padding: 15, borderRadius: 16, backgroundColor: c.pink }}
                     >
-                      <View
-                        style={[
-                          s.checkbox,
-                          checked && { backgroundColor: c.purple, borderColor: c.purple },
-                        ]}
-                      >
-                        {checked && <Check size={15} color={c.white} />}
-                      </View>
-                      <Type style={{ fontSize: 13, flex: 1 }}>
-                        I checked the portions and nutrition estimates.
+                      <Type style={{ fontSize: 13 }}>
+                        Remove this photo and its details from your journal?
                       </Type>
-                    </Pressable>
-                  )}
-                  {error && (
-                    <Type accessibilityRole="alert" style={{ color: c.error, fontSize: 13 }}>
-                      {error}
-                    </Type>
-                  )}
-                  {!valid && !error && (
-                    <Type kind="small">
-                      {validateMeal(meal) || 'Check the portions to save your photo estimate.'}
-                    </Type>
-                  )}
-                  <Button
-                    label={existing ? 'Save changes' : 'Save memory'}
-                    icon={Save}
-                    busy={saving}
-                    disabled={!valid}
-                    onPress={() => void save()}
-                  />
-                  <Button
-                    label={existing ? 'Close memory' : 'Discard snap'}
-                    variant="ghost"
-                    onPress={close}
-                    disabled={saving}
-                  />
-                  {existing &&
-                    (confirmDelete ? (
-                      <View
-                        style={{ gap: 9, padding: 15, borderRadius: 16, backgroundColor: c.pink }}
-                      >
-                        <Type style={{ fontSize: 13 }}>
-                          Remove this photo and its details from your journal?
-                        </Type>
-                        <Button
-                          label="Yes, remove this memory"
-                          icon={Trash2}
-                          variant="danger"
-                          busy={saving}
-                          onPress={() => void remove()}
-                        />
-                        <Button
-                          label="Keep my memory"
-                          variant="ghost"
-                          onPress={() => setConfirmDelete(false)}
-                          disabled={saving}
-                        />
-                      </View>
-                    ) : (
                       <Button
-                        label="Remove memory"
+                        label="Yes, remove this memory"
                         icon={Trash2}
                         variant="danger"
-                        onPress={() => setConfirmDelete(true)}
+                        busy={saving}
+                        onPress={() => void remove()}
                       />
-                    ))}
-                </View>
+                      <Button
+                        label="Keep my memory"
+                        variant="ghost"
+                        onPress={() => setConfirmDelete(false)}
+                        disabled={saving}
+                      />
+                    </View>
+                  ) : (
+                    <Button
+                      label="Remove memory"
+                      icon={Trash2}
+                      variant="danger"
+                      onPress={() => setConfirmDelete(true)}
+                    />
+                  ))}
               </View>
-              <Type kind="small" style={{ textAlign: 'center', marginTop: 30 }}>
-                Photo estimates are approximate. Use a label or weighed portion when accuracy
-                matters.
-              </Type>
-            </>
+            </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -626,20 +693,21 @@ const s = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     right: 24,
-    padding: 20,
-    borderRadius: 23,
+    padding: 15,
+    borderRadius: 20,
     backgroundColor: '#FAF8F0',
-    transform: [{ rotate: '-4deg' }],
     boxShadow: '0 5px 25px rgba(0,0,0,0.09)',
   },
-  aiCard: {
+  macros: {
     flexDirection: 'row',
-    gap: 12,
-    backgroundColor: c.lavender,
-    borderRadius: 18,
-    padding: 17,
+    gap: 20,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: c.line,
   },
-  uncertainty: { backgroundColor: '#F7F0DE', borderRadius: 14, padding: 14 },
+  nutrients: { gap: 10, padding: 16, borderRadius: 16, backgroundColor: c.white },
+  detailToggle: { minHeight: 44, justifyContent: 'center' },
   pill: {
     borderWidth: 1,
     borderColor: c.line,
@@ -666,13 +734,4 @@ const s = StyleSheet.create({
   },
   foodName: { flex: 1, fontFamily: f.bold, fontSize: 14, color: c.ink, minHeight: 40 },
   stepper: { width: 32, height: 32, borderWidth: 1, borderColor: c.line },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#C5BAD9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 });

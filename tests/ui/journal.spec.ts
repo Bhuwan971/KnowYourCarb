@@ -40,9 +40,7 @@ test('sample snap animates, stores a memory, and stays out of real totals', asyn
   await page.goto('/');
   await page.getByRole('button', { name: 'Try a sample snap', exact: true }).last().click();
   await expect(page.getByText('Reading your plate…')).toBeVisible();
-  await expect(page.getByLabel('Memory name', { exact: true })).toHaveValue(
-    'A bowl of good things',
-  );
+  await expect(page.getByText('A bowl of good things', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Save memory', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Open A bowl of good things', exact: true }),
@@ -63,7 +61,7 @@ test('imported photo persists after reload; discarded snaps do not save', async 
   await page.getByRole('button', { name: 'Import a food photo', exact: true }).click();
   const chooser = await chooserPromise;
   await chooser.setFiles('assets/bowl.jpg');
-  await expect(page.getByText('Your photo is ready to keep')).toBeVisible();
+  await expect(page.getByText('Add nutrition from a label.')).toBeVisible();
   await page.getByLabel('Memory name', { exact: true }).fill('My photo lunch');
   await page.getByLabel('Food 1 name', { exact: true }).fill('Lunch');
   await page.getByLabel('Food 1 carbs (g / portion)', { exact: true }).fill('35');
@@ -74,7 +72,7 @@ test('imported photo persists after reload; discarded snaps do not save', async 
     'src',
     /^data:image\/jpeg;base64,/,
   );
-  await page.getByRole('button', { name: 'Close memory', exact: true }).click();
+  await page.getByRole('button', { name: 'Back to memories', exact: true }).click();
   await page.getByRole('tab', { name: 'Snap a meal', exact: true }).click();
   await page.getByRole('button', { name: 'Add carbs manually', exact: true }).click();
   await page.getByLabel('Memory name', { exact: true }).fill('Unsaved meal');

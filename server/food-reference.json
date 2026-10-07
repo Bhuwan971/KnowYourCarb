@@ -1,0 +1,330 @@
+{
+  "source": "USDA FoodData Central",
+  "retrievedAt": "2026-10-06",
+  "units": "per 100 g edible portion; kcal for calories, mg for sodium/potassium/calcium/iron, g otherwise",
+  "foods": [
+    {
+      "id": "chicken-breast-roasted",
+      "fdcId": 171477,
+      "description": "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
+      "per100g": {
+        "carbs": 0,
+        "calories": 165,
+        "protein": 31,
+        "fat": 3.57,
+        "sugar": 0,
+        "fiber": 0,
+        "saturatedFat": 1.01,
+        "sodium": 74,
+        "potassium": 256,
+        "calcium": 15,
+        "iron": 1.04
+      }
+    },
+    {
+      "id": "banana-raw",
+      "fdcId": 173944,
+      "description": "Bananas, raw",
+      "per100g": {
+        "carbs": 22.8,
+        "calories": 89,
+        "protein": 1.09,
+        "fat": 0.33,
+        "sugar": 12.2,
+        "fiber": 2.6,
+        "saturatedFat": 0.112,
+        "sodium": 1,
+        "potassium": 358,
+        "calcium": 5,
+        "iron": 0.26
+      }
+    },
+    {
+      "id": "butter-salted",
+      "fdcId": 173410,
+      "description": "Butter, salted",
+      "per100g": {
+        "carbs": 0.06,
+        "calories": 717,
+        "protein": 0.85,
+        "fat": 81.1,
+        "sugar": 0.06,
+        "fiber": 0,
+        "saturatedFat": 51.4,
+        "sodium": 643,
+        "potassium": 24,
+        "calcium": 24,
+        "iron": 0.02
+      }
+    },
+    {
+      "id": "chickpeas-cooked",
+      "fdcId": 173757,
+      "description": "Chickpeas (garbanzo beans, bengal gram), mature seeds, cooked, boiled, without salt",
+      "per100g": {
+        "carbs": 27.4,
+        "calories": 164,
+        "protein": 8.86,
+        "fat": 2.59,
+        "sugar": 4.8,
+        "fiber": 7.6,
+        "saturatedFat": 0.269,
+        "sodium": 7,
+        "potassium": 291,
+        "calcium": 49,
+        "iron": 2.89
+      }
+    },
+    {
+      "id": "egg-hard-boiled",
+      "fdcId": 173424,
+      "description": "Egg, whole, cooked, hard-boiled",
+      "per100g": {
+        "carbs": 1.12,
+        "calories": 155,
+        "protein": 12.6,
+        "fat": 10.6,
+        "sugar": 1.12,
+        "fiber": 0,
+        "saturatedFat": 3.27,
+        "sodium": 124,
+        "potassium": 126,
+        "calcium": 50,
+        "iron": 1.19
+      }
+    },
+    {
+      "id": "white-rice-cooked",
+      "fdcId": 168878,
+      "description": "Rice, white, long-grain, regular, enriched, cooked",
+      "per100g": {
+        "carbs": 28.2,
+        "calories": 130,
+        "protein": 2.69,
+        "fat": 0.28,
+        "sugar": 0.05,
+        "fiber": 0.4,
+        "saturatedFat": 0.077,
+        "sodium": 1,
+        "potassium": 35,
+        "calcium": 10,
+        "iron": 1.2
+      }
+    },
+    {
+      "id": "tofu-firm-calcium",
+      "fdcId": 172475,
+      "description": "Tofu, raw, firm, prepared with calcium sulfate",
+      "per100g": {
+        "carbs": 2.78,
+        "calories": 144,
+        "protein": 17.3,
+        "fat": 8.72,
+        "fiber": 2.3,
+        "saturatedFat": 1.26,
+        "sodium": 14,
+        "potassium": 237,
+        "calcium": 683,
+        "iron": 2.66
+      }
+    },
+    {
+      "id": "lentils-cooked",
+      "fdcId": 172421,
+      "description": "Lentils, mature seeds, cooked, boiled, without salt",
+      "per100g": {
+        "carbs": 20.1,
+        "calories": 116,
+        "protein": 9.02,
+        "fat": 0.38,
+        "sugar": 1.8,
+        "fiber": 7.9,
+        "saturatedFat": 0.053,
+        "sodium": 2,
+        "potassium": 369,
+        "calcium": 19,
+        "iron": 3.33
+      }
+    },
+    {
+      "id": "salmon-cooked",
+      "fdcId": 175168,
+      "description": "Fish, salmon, Atlantic, farmed, cooked, dry heat",
+      "per100g": {
+        "carbs": 0,
+        "calories": 206,
+        "protein": 22.1,
+        "fat": 12.4,
+        "sugar": 0,
+        "fiber": 0,
+        "saturatedFat": 2.4,
+        "sodium": 61,
+        "potassium": 384,
+        "calcium": 15,
+        "iron": 0.34
+      }
+    },
+    {
+      "id": "honey",
+      "fdcId": 169640,
+      "description": "Honey",
+      "per100g": {
+        "carbs": 82.4,
+        "calories": 304,
+        "protein": 0.3,
+        "fat": 0,
+        "sugar": 82.1,
+        "fiber": 0.2,
+        "saturatedFat": 0,
+        "sodium": 4,
+        "potassium": 52,
+        "calcium": 6,
+        "iron": 0.42
+      }
+    },
+    {
+      "id": "mango-raw",
+      "fdcId": 169910,
+      "description": "Mangos, raw",
+      "per100g": {
+        "carbs": 15,
+        "calories": 60,
+        "protein": 0.82,
+        "fat": 0.38,
+        "sugar": 13.7,
+        "fiber": 1.6,
+        "saturatedFat": 0.092,
+        "sodium": 1,
+        "potassium": 168,
+        "calcium": 11,
+        "iron": 0.16
+      }
+    },
+    {
+      "id": "olive-oil",
+      "fdcId": 171413,
+      "description": "Oil, olive, salad or cooking",
+      "per100g": {
+        "carbs": 0,
+        "calories": 884,
+        "protein": 0,
+        "fat": 100,
+        "sugar": 0,
+        "fiber": 0,
+        "saturatedFat": 13.8,
+        "sodium": 2,
+        "potassium": 1,
+        "calcium": 1,
+        "iron": 0.56
+      }
+    },
+    {
+      "id": "tomato-raw",
+      "fdcId": 170457,
+      "description": "Tomatoes, red, ripe, raw, year round average",
+      "per100g": {
+        "carbs": 3.89,
+        "calories": 18,
+        "protein": 0.88,
+        "fat": 0.2,
+        "sugar": 2.63,
+        "fiber": 1.2,
+        "saturatedFat": 0.028,
+        "sodium": 5,
+        "potassium": 237,
+        "calcium": 10,
+        "iron": 0.27
+      }
+    },
+    {
+      "id": "beef-stew-braised",
+      "fdcId": 171203,
+      "description": "Beef, chuck for stew, separable lean and fat, all grades, cooked, braised",
+      "per100g": {
+        "carbs": 0,
+        "calories": 191,
+        "protein": 32.4,
+        "fat": 6.82,
+        "sugar": 0,
+        "fiber": 0,
+        "saturatedFat": 2.8,
+        "sodium": 67,
+        "potassium": 319,
+        "calcium": 16,
+        "iron": 2.96
+      }
+    },
+    {
+      "id": "collards-cooked",
+      "fdcId": 170407,
+      "description": "Collards, cooked, boiled, drained, without salt",
+      "per100g": {
+        "carbs": 5.65,
+        "calories": 33,
+        "protein": 2.71,
+        "fat": 0.72,
+        "sugar": 0.4,
+        "fiber": 4,
+        "saturatedFat": 0.047,
+        "sodium": 15,
+        "potassium": 117,
+        "calcium": 141,
+        "iron": 1.13
+      }
+    },
+    {
+      "id": "avocado-raw",
+      "fdcId": 171705,
+      "description": "Avocados, raw, all commercial varieties",
+      "per100g": {
+        "carbs": 8.53,
+        "calories": 160,
+        "protein": 2,
+        "fat": 14.7,
+        "sugar": 0.66,
+        "fiber": 6.7,
+        "saturatedFat": 2.13,
+        "sodium": 7,
+        "potassium": 485,
+        "calcium": 12,
+        "iron": 0.55
+      }
+    },
+    {
+      "id": "quinoa-cooked",
+      "fdcId": 168917,
+      "description": "Quinoa, cooked",
+      "per100g": {
+        "carbs": 21.3,
+        "calories": 120,
+        "protein": 4.4,
+        "fat": 1.92,
+        "sugar": 0.87,
+        "fiber": 2.8,
+        "saturatedFat": 0.231,
+        "sodium": 7,
+        "potassium": 172,
+        "calcium": 17,
+        "iron": 1.49
+      }
+    },
+    {
+      "id": "injera",
+      "fdcId": 2707796,
+      "description": "Injera, Ethiopian bread",
+      "per100g": {
+        "carbs": 19.39,
+        "calories": 93,
+        "protein": 2.55,
+        "fat": 0.68,
+        "sugar": 1.03,
+        "fiber": 2.8,
+        "saturatedFat": 0.177,
+        "sodium": 226,
+        "potassium": 102,
+        "calcium": 11,
+        "iron": 0.98
+      }
+    }
+  ]
+}
