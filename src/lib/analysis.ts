@@ -8,6 +8,7 @@ export async function analyzePhoto(uri: string, signal: AbortSignal): Promise<An
       'Photo estimates aren’t connected yet. You can still add carbs from a label and save your snap.',
     );
   const image = await photoBase64(uri);
+  if (signal.aborted) throw new Error('Photo scan cancelled.');
   const response = await fetch(`${analysisUrl}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -26,12 +27,17 @@ export async function analyzePhoto(uri: string, signal: AbortSignal): Promise<An
     !data.items.length ||
     data.items.some(
       (i: FoodItem) =>
+        !i ||
         typeof i.name !== 'string' ||
         typeof i.portion !== 'string' ||
         typeof i.carbs !== 'number' ||
         !Number.isFinite(i.carbs) ||
         i.carbs < 0 ||
-        i.carbs > 2000,
+        i.carbs > 2000 ||
+        typeof i.calories !== 'number' ||
+        !Number.isFinite(i.calories) ||
+        i.calories < 0 ||
+        i.calories > 20000,
     )
   )
     throw new Error('The estimate was incomplete. Please try again or add your own values.');
@@ -43,6 +49,7 @@ export async function analyzePhoto(uri: string, signal: AbortSignal): Promise<An
       name: i.name,
       portion: i.portion,
       carbs: i.carbs,
+      calories: i.calories,
       servings: 1,
     })),
   };

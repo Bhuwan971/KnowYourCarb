@@ -4,7 +4,7 @@ import { createApp } from '../server/index.mjs';
 import { validateAnalysis, validateImage } from '../server/analysis.mjs';
 const result = {
   title: 'Quinoa bowl',
-  items: [{ name: 'Quinoa', portion: '½ cup', carbs: 20 }],
+  items: [{ name: 'Quinoa', portion: '½ cup', carbs: 20, calories: 111 }],
   uncertainty: 'The portion is approximate; sauce and hidden ingredients may change the carbs.',
 };
 const image = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]).toString('base64');
@@ -55,6 +55,8 @@ test('server proxies the image, disables interaction storage and returns validat
 test('invalid model results and non-food responses are rejected', () => {
   for (const carbs of [-5, Infinity, '20', 2001])
     assert.throws(() => validateAnalysis({ ...result, items: [{ ...result.items[0], carbs }] }));
+  for (const calories of [undefined, null, -1, Infinity, '111', 20001])
+    assert.throws(() => validateAnalysis({ ...result, items: [{ ...result.items[0], calories }] }));
   assert.throws(() => validateAnalysis({ ...result, items: [] }), { status: 422 });
   assert.throws(() => validateAnalysis({ ...result, uncertainty: '' }));
   assert.throws(() =>

@@ -6,9 +6,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   ArrowRight,
   Camera,
-  ImagePlus,
-  PencilLine,
-  Sparkles,
+  Images,
+  NotebookPen,
+  UtensilsCrossed,
+  Wheat,
   Check,
   MoveLeft,
   ScanLine,
@@ -18,6 +19,7 @@ import { useApp } from '../../state/AppProvider';
 import { dailyTotal, localDay, newMeal } from '../../lib/model';
 import { photos, sampleMeal } from '../../lib/samples';
 import { colors as c, fonts as f } from '../../lib/theme';
+import { analysisUrl } from '../../lib/analysis';
 import { Chip, FoodPhoto, IconButton, Type } from '../../components/ui';
 import { Mascot } from '../../components/Mascot';
 import { PageHeading, TextLink } from '../../components/Shell';
@@ -25,7 +27,7 @@ import { MemoryCard } from '../../components/MemoryCard';
 import { usePhotoActions } from '../../components/usePhotoActions';
 
 export default function SnapScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const split = width >= 1180;
   const mobile = width < 600;
   const { meals, settings, setDraft, tap, notify } = useApp();
@@ -65,7 +67,7 @@ export default function SnapScreen() {
       router.navigate('/capture');
       return;
     }
-    if (!ready || taking) return;
+    if (!ready || taking || busy) return;
     setTaking(true);
     try {
       const photo = await camera.current?.takePictureAsync({ quality: 0.8 });
@@ -85,6 +87,7 @@ export default function SnapScreen() {
   return (
     <>
       <PageHeading
+        compact={mobile}
         eyebrow={`${greeting}${settings.name ? `, ${settings.name.toUpperCase()}` : ''} ✦`}
         title="Good food. Less guesswork."
         subtitle="Snap your plate. Get a little clarity. Go enjoy your day."
@@ -103,16 +106,22 @@ export default function SnapScreen() {
       <View style={{ flexDirection: split ? 'row' : 'column', gap: 25 }}>
         <View style={{ flex: split ? 1.85 : undefined }}>
           <View style={s.cameraCard}>
-            <View style={[s.preview, { height: mobile ? 350 : 368 }]}>
+            <View
+              style={[
+                s.preview,
+                { height: mobile ? Math.max(360, Math.min(460, height * 0.48)) : 480 },
+              ]}
+            >
               {live ? (
                 <CameraView
                   ref={camera}
                   style={{ flex: 1 }}
                   facing="back"
                   onCameraReady={() => setReady(true)}
-                  onMountError={() =>
-                    notify('The camera couldn’t start. You can import a photo instead.')
-                  }
+                  onMountError={() => {
+                    setReady(false);
+                    notify('The camera couldn’t start. You can import a photo instead.');
+                  }}
                 />
               ) : (
                 <FoodPhoto source={photos.bowl} style={StyleSheet.absoluteFill} />
@@ -132,9 +141,9 @@ export default function SnapScreen() {
                 </View>
                 <IconButton
                   label="Try a sample snap"
-                  icon={Sparkles}
+                  icon={UtensilsCrossed}
                   onPress={() => demo()}
-                  style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: 35, height: 35 }}
+                  style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: 44, height: 44 }}
                   color={c.white}
                 />
               </View>
@@ -178,7 +187,7 @@ export default function SnapScreen() {
               </View>
               {!live && (
                 <View style={[s.sticker, mobile && { right: 20, top: 80 }]}>
-                  <Sparkles size={15} color={c.purple} />
+                  <Wheat size={18} color={c.purple} />
                   <Type style={{ fontFamily: f.displayBold, fontSize: 29, lineHeight: 35 }}>
                     40<Type style={{ fontSize: 16 }}>g</Type>
                   </Type>
@@ -206,15 +215,19 @@ export default function SnapScreen() {
                 </Type>
                 <Type style={{ color: '#F0EFE8', fontSize: 11, marginTop: 7 }}>
                   {live
-                    ? 'Center your food. Tap to snap.'
-                    : 'One photo. A food memory that stays with you.'}
+                    ? analysisUrl
+                      ? 'Snap to estimate with Google Gemini.'
+                      : 'Center your food. Tap to snap.'
+                    : analysisUrl
+                      ? 'Snap or import to auto-scan with Google Gemini.'
+                      : 'One photo. A food memory that stays with you.'}
                 </Type>
               </View>
             </View>
             <View style={s.cameraControls}>
               <IconButton
                 label="Import a food photo"
-                icon={ImagePlus}
+                icon={Images}
                 onPress={() => void pick()}
                 disabled={busy || taking}
                 style={s.controlButton}
@@ -222,7 +235,7 @@ export default function SnapScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Snap a meal"
-                accessibilityState={{ disabled: busy || taking }}
+                accessibilityState={{ disabled: busy || taking || (!!live && !ready) }}
                 disabled={busy || taking || (!!live && !ready)}
                 onPress={() => void snap()}
                 style={({ pressed }) => [
@@ -237,7 +250,7 @@ export default function SnapScreen() {
               </Pressable>
               <IconButton
                 label="Add carbs manually"
-                icon={PencilLine}
+                icon={NotebookPen}
                 onPress={manual}
                 style={s.controlButton}
               />
@@ -248,8 +261,13 @@ export default function SnapScreen() {
               <Type kind="small">Add manually</Type>
             </View>
           </View>
+          <Type kind="small" style={{ textAlign: 'center', marginTop: 10, paddingHorizontal: 8 }}>
+            {analysisUrl
+              ? 'Your scan fills in calories, carbs & portions. Edit any detail, then save.'
+              : 'Snap or import, then review your nutrition. Connect photo estimates to fill it in automatically.'}
+          </Type>
           <View style={s.sampleLink}>
-            <Sparkles size={14} color={c.purple} />
+            <UtensilsCrossed size={16} color={c.purple} />
             <Type kind="small">Just looking around?</Type>
             <Pressable
               accessibilityRole="button"
@@ -333,8 +351,8 @@ export default function SnapScreen() {
               { icon: Camera, title: 'Snap your food', text: 'Or pick a photo you already love.' },
               {
                 icon: ScanLine,
-                title: 'Review the little details',
-                text: 'Check portions. Make it yours.',
+                title: 'Scan, then make it yours',
+                text: 'Review calories, carbs and portions.',
               },
               {
                 icon: Check,
@@ -487,19 +505,19 @@ const s = StyleSheet.create({
     paddingTop: 14,
     paddingHorizontal: 17,
   },
-  controlButton: { backgroundColor: '#F4F1F8', width: 46, height: 46 },
+  controlButton: { backgroundColor: '#F4F1F8', width: 50, height: 50, borderRadius: 17 },
   shutterOuter: {
-    width: 70,
-    height: 70,
+    width: 78,
+    height: 78,
     padding: 5,
-    borderRadius: 35,
+    borderRadius: 39,
     borderWidth: 1.5,
     borderColor: c.purple,
   },
   shutterInner: {
     flex: 1,
     backgroundColor: c.purple,
-    borderRadius: 30,
+    borderRadius: 34,
     alignItems: 'center',
     justifyContent: 'center',
   },

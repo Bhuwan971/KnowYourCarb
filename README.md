@@ -25,8 +25,8 @@ Use Node 22.13 or newer (Node 24 LTS recommended). Camera support requires a pho
 - Snap a photo, import from your library, or enter a meal manually.
 - Returning to the mobile home screen opens a live camera once permission has been granted.
 - Try the animated sample scan immediately, without configuring any services.
-- Keep a photo with editable food names, explicit portions, total carbohydrate, servings eaten, meal type, and notes.
-- Each food's carbs are multiplied by portions eaten; the sticker and daily total update together.
+- Keep a photo with editable food names, explicit portions, total carbohydrate, calories, servings eaten, meal type, and notes.
+- Each food's carbs and calories are multiplied by portions eaten; the photo sticker and memory card update as you edit. The daily carb total stays in sync.
 - Save or discard; browse, search, filter, reopen, edit, and delete memories.
 - View seven days of logged carbs. Set an optional personal daily reference; no target is prescribed.
 - Customize your greeting and haptics. Export meal details as JSON (photos are excluded).
@@ -44,7 +44,7 @@ Photo recognition needs a service and a provider key. Without them, the app supp
 4. In another terminal in this folder, run `npm run server`.
 5. Restart Expo after changing `.env`.
 
-After capturing or importing a photo, tap **Estimate this photo**. The screen explains that the photo will be sent to the local service and Google Gemini. No photo is sent automatically. The model returns explicit portion assumptions and an uncertainty note. You must confirm that you checked the portions before saving an AI estimate.
+When photo estimates are configured, capturing or importing a photo **automatically starts a scan** through the local service and Google Gemini. The camera and home screen explain this before capture or import. The scan fills in food names, portions, total carbs and calories; every value remains editable. Confirm that you checked the nutrition estimates before saving. Cancel to enter values manually, or use **Retry scan** after a failure. Reopening a saved memory preserves your edits without starting a new scan; **Scan again** is available when you want a fresh estimate.
 
 The included server uses the [Gemini Interactions API](https://ai.google.dev/api/interactions-api), structured output, and the configurable `GEMINI_MODEL` (default `gemini-3.8-flash`, documented by [Google](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash)). It validates input images and returned values, limits request size and rate, times out requests, and does not log photos or keys. Interaction storage is disabled with `store: false`; Google's provider data policies still apply. Missing credentials, unrecognizable food, and service errors produce a clear manual-entry fallback.
 
@@ -52,7 +52,7 @@ This is a **local development server** bound to your LAN for phone testing. Befo
 
 ## Accuracy and data
 
-Carbsy records **total carbohydrate**, not net carbs. A photograph cannot determine exact weight, ingredients, or cooking method. Photo outputs are estimates, not validated nutrition facts. For reliable counting, weigh your food and enter values from its nutrition label or a trusted nutrition source. Do not use a photo estimate alone for medication decisions.
+Carbsy records **total carbohydrate**, not net carbs, plus optional calories in kcal. Calories are estimated independently of carbs, including the energy contribution of fat and protein. Meals saved before calorie support remain readable; missing calorie values stay unknown rather than being counted as zero. A photograph cannot determine exact weight, ingredients, or cooking method. Photo outputs are estimates, not validated nutrition facts. For reliable counting, weigh your food and enter values from its nutrition label or a trusted nutrition source. Do not use a photo estimate alone for medication decisions.
 
 On native devices, saved photos are copied out of the temporary camera cache into the app's document directory. Metadata is written only after photo persistence succeeds. Browser photos are compressed JPEG data URIs stored with the local journal. Storage failures preserve the editor and show an error instead of reporting success. Browser storage has a quota; larger journals may eventually need IndexedDB/cloud storage. Clearing browser data or uninstalling the app deletes local data. The JSON export contains meal details, **not a photo backup**. There is no cloud sync or encryption layer in this first version.
 
@@ -75,9 +75,9 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ui
 
 The browser tests cover phone and desktop layouts, sample animation, manual calculations, import, persistence after reload, edit/delete/discard, search, and preferences. Physical camera capture and native haptics still need a real-device test in Expo Go.
 
-Two additional mocked AI browser tests check explicit upload consent, review before saving, and preserving a photo after service failure. To run them, start a second Expo preview with `EXPO_PUBLIC_ANALYSIS_URL=http://localhost:3001 npm run web -- --port 8082`, then run `PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ai`. These tests intercept requests; they don't call a provider.
+Five additional mocked AI browser tests check automatic import and camera scans, editable calorie totals and persistence, review before saving, cancellation, retries, and incomplete-result fallback. To run them, start a second Expo preview with `EXPO_PUBLIC_ANALYSIS_URL=http://localhost:3001 npm run web -- --port 8082`, then run `PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ai`. These tests intercept requests; they don't call a provider.
 
-Validation completed: 8 calculation/server tests, 8 phone/desktop interaction tests, 2 mocked AI interaction tests, 21 Expo compatibility checks, and exports for iOS, Android, and web. Actual provider accuracy and physical-device camera/haptics have not been verified.
+The calculation/server suite has 10 tests, the phone/desktop interaction suite has 8 tests, and the mocked AI suite has 5 tests. Browser camera coverage uses a simulated camera feed. Actual provider accuracy and physical-device camera/haptics have not been verified.
 
 The SDK 57 dependency tree currently reports npm audit advisories inherited through Expo/React Native and their tooling. This is a local development app; dependency remediation should be reviewed before release. Avoid `npm audit fix --force`, which suggests incompatible SDK downgrades. The dependency lockfile is included.
 

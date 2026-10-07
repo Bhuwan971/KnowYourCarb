@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Platform, Share, StyleSheet, Switch, View } from 'react-native';
-import { Download, Heart, Save, ShieldCheck, Sparkles } from 'lucide-react-native';
+import { Download, Heart, Save, ShieldCheck, ScanLine } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
 import { analysisUrl } from '../../lib/analysis';
 import { colors as c, fonts as f } from '../../lib/theme';
@@ -43,7 +43,7 @@ export default function SettingsScreen() {
       const result = await response.json();
       setStatus(
         result.configured
-          ? 'Photo estimates are connected. You choose when to send a photo.'
+          ? 'Photo estimates are connected. New snaps and imports scan automatically.'
           : 'The service is running, but photo estimates still need to be configured.',
       );
     } catch {
@@ -177,17 +177,17 @@ export default function SettingsScreen() {
             }}
           >
             <View style={s.heading}>
-              <Sparkles size={20} color={c.purple} />
+              <ScanLine size={22} color={c.purple} />
               <Type style={{ fontFamily: f.displayBold, fontSize: 21, flexShrink: 1 }}>
                 A closer look at your plate
               </Type>
             </View>
-            <Chip>{analysisUrl ? 'OPTIONAL AI' : 'LOCAL MODE'}</Chip>
+            <Chip>{analysisUrl ? 'AUTO SCAN' : 'LOCAL MODE'}</Chip>
           </View>
           <Type style={{ color: c.muted, fontSize: 14 }}>
             {analysisUrl
-              ? 'When you choose “Estimate this photo,” the photo is sent to your analysis service and Google Gemini. No photo is sent automatically. Photos can’t reveal exact portions, recipes, or hidden ingredients.'
-              : 'You can save photos and enter carbs from a nutrition label right now. Optional photo estimates can be connected later.'}
+              ? 'New snaps and imported photos are sent automatically to your analysis service and Google Gemini to estimate calories, carbs and portions. Review or edit the details before saving. Photos can’t reveal exact portions, recipes, or hidden ingredients.'
+              : 'You can save photos and enter carbs and calories from a nutrition label right now. Connect photo estimates to fill in new snaps automatically.'}
           </Type>
           {analysisUrl && (
             <Button

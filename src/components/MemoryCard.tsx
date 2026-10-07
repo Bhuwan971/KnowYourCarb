@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ArrowUpRight, Clock3 } from 'lucide-react-native';
-import { Meal, sourceLabel, totalCarbs } from '../lib/model';
+import { Meal, sourceLabel, totalCarbs, totalCalories } from '../lib/model';
 import { colors as c, fonts as f } from '../lib/theme';
 import { FoodPhoto, Type, Chip } from './ui';
 export function MemoryCard({
@@ -13,6 +13,7 @@ export function MemoryCard({
   onPress: () => void;
   compact?: boolean;
 }) {
+  const calories = totalCalories(meal.items);
   return (
     <Pressable
       accessibilityRole="button"
@@ -36,6 +37,9 @@ export function MemoryCard({
             <Type style={{ fontSize: 13 }}>g</Type>
           </Type>
           <Type style={{ fontSize: 9, lineHeight: 13, color: c.muted }}>total carbs</Type>
+          {calories !== null && (
+            <Type style={{ fontSize: 10, lineHeight: 16, color: c.purple }}>{calories} kcal</Type>
+          )}
         </View>
       </View>
       <View style={s.info}>

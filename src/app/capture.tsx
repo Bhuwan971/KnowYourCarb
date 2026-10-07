@@ -4,12 +4,13 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Camera, ImagePlus, RefreshCw, X, Zap, ZapOff } from 'lucide-react-native';
+import { Camera, Images, SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
 import { usePhotoActions } from '../components/usePhotoActions';
 import { Button, IconButton, Type } from '../components/ui';
 import { Mascot } from '../components/Mascot';
 import { useApp } from '../state/AppProvider';
 import { colors as c, fonts as f } from '../lib/theme';
+import { analysisUrl } from '../lib/analysis';
 export default function CaptureScreen() {
   const [permission, request] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
@@ -117,7 +118,9 @@ export default function CaptureScreen() {
               style={{ marginTop: 23 }}
             />
             <Type kind="small" style={{ marginTop: 16, color: '#AAA1BA' }}>
-              Your photos stay local until you choose an AI estimate.
+              {analysisUrl
+                ? 'Snaps automatically scan with Google Gemini. Review and edit the results.'
+                : 'Your photos stay on this device. Photo estimates aren’t connected yet.'}
             </Type>
           </View>
         )}
@@ -125,7 +128,7 @@ export default function CaptureScreen() {
       <View style={s.controls}>
         <IconButton
           label="Import a food photo"
-          icon={ImagePlus}
+          icon={Images}
           onPress={() => void pick()}
           disabled={busy || taking}
           style={s.darkButton}
@@ -147,43 +150,46 @@ export default function CaptureScreen() {
         </Pressable>
         <IconButton
           label="Flip camera"
-          icon={RefreshCw}
+          icon={SwitchCamera}
           onPress={() => {
             setReady(false);
             setFacing(facing === 'back' ? 'front' : 'back');
           }}
-          disabled={!permission?.granted || taking}
+          disabled={!permission?.granted || taking || busy}
           style={s.darkButton}
           color={c.white}
         />
       </View>
-      <Type kind="small" style={{ textAlign: 'center', color: '#BCB4CA', paddingBottom: 22 }}>
-        Snap. Review. Save a little moment.
+      <Type
+        kind="small"
+        style={{ textAlign: 'center', color: '#BCB4CA', paddingBottom: 12, paddingHorizontal: 18 }}
+      >
+        {analysisUrl ? 'Snap. Auto-scan. Edit & save.' : 'Snap. Review. Save a little moment.'}
       </Type>
     </SafeAreaView>
   );
 }
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#201B2C' },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18 },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 },
   darkButton: { backgroundColor: '#393143' },
   camera: {
     flex: 1,
-    marginHorizontal: 14,
-    borderRadius: 28,
+    marginHorizontal: 6,
+    borderRadius: 24,
     overflow: 'hidden',
     minHeight: 250,
-    maxWidth: 700,
-    width: '94%',
+    maxWidth: 900,
+    width: '97%',
     alignSelf: 'center',
   },
   permission: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   frame: {
     position: 'absolute',
-    top: '22%',
-    left: '10%',
-    right: '10%',
-    bottom: '22%',
+    top: '15%',
+    left: '8%',
+    right: '8%',
+    bottom: '15%',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.65)',
     borderRadius: 26,
@@ -205,7 +211,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 55,
-    paddingVertical: 28,
+    paddingVertical: 16,
   },
   shutter: {
     width: 78,

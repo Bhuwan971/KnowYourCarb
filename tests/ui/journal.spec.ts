@@ -37,7 +37,7 @@ test('manual fractional portions persist, update totals, and can be deleted', as
 test('sample snap animates, stores a memory, and stays out of real totals', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Try a sample snap', exact: true }).last().click();
-  await expect(page.getByText('A little moment of magic…')).toBeVisible();
+  await expect(page.getByText('Reading your plate…')).toBeVisible();
   await expect(page.getByLabel('Memory name', { exact: true })).toHaveValue(
     'A bowl of good things',
   );

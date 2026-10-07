@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Platform, StyleSheet, View } from 'react-native';
-import { Sparkles } from 'lucide-react-native';
+import { ScanLine } from 'lucide-react-native';
 import { colors as c, fonts as f } from '../lib/theme';
 import { FoodPhoto, Type } from './ui';
 import { Mascot } from './Mascot';
@@ -73,9 +73,9 @@ export function Scanner({ photo, sample = false }: { photo?: string; sample?: bo
           ]}
         />
         <View style={s.badge}>
-          <Sparkles size={14} color={c.white} />
+          <ScanLine size={17} color={c.white} />
           <Type style={{ color: c.white, fontSize: 12 }}>
-            {sample ? 'Trying a sample snap' : 'Finding the little details'}
+            {sample ? 'Trying a sample snap' : 'Estimating calories & carbs'}
           </Type>
         </View>
       </View>
@@ -91,14 +91,14 @@ export function Scanner({ photo, sample = false }: { photo?: string; sample?: bo
         <Mascot size={80} happy />
       </Animated.View>
       <Type style={{ fontFamily: f.displayBold, fontSize: 26, marginTop: 13 }}>
-        A little moment of magic…
+        Reading your plate…
       </Type>
       <Type kind="small" style={{ marginTop: 9 }}>
         {
           [
-            'Taking a closer look at your plate',
-            'Making room for a little clarity',
-            'Putting the pieces together',
+            'Identifying the foods and portions',
+            'Estimating calories and total carbs',
+            'Getting your editable details ready',
           ][step]
         }
       </Type>

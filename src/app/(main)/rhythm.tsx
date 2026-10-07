@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { Camera, Heart, Images, Sparkles } from 'lucide-react-native';
+import { Camera, Heart, Images, Wheat } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
 import { dailyTotal, localDay, round, totalCarbs } from '../../lib/model';
 import { colors as c, fonts as f } from '../../lib/theme';
@@ -40,7 +40,7 @@ export default function RhythmScreen() {
             title: 'Carbs logged this week',
             value: `${total}`,
             unit: 'g',
-            icon: Sparkles,
+            icon: Wheat,
             color: c.lavender,
           },
           {

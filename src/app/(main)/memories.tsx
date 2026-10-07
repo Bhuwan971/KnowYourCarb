@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { Camera, Search, SlidersHorizontal, Sparkles } from 'lucide-react-native';
+import { Camera, Search, SlidersHorizontal, UtensilsCrossed } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
 import { colors as c, fonts as f } from '../../lib/theme';
 import { dailyTotal, localDay, Meal } from '../../lib/model';
@@ -105,7 +105,7 @@ export default function MemoriesScreen() {
           <View style={s.emptyCircle}>
             <Mascot size={125} happy />
           </View>
-          <Chip icon={Sparkles} color={c.lime} textColor="#5A6E3F">
+          <Chip icon={UtensilsCrossed} color={c.lime} textColor="#5A6E3F">
             ROOM FOR SOMETHING GOOD
           </Chip>
           <Type kind="title" style={{ textAlign: 'center', marginTop: 20 }}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,8 +11,27 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, Check, Minus, Plus, Save, Sparkles, Trash2, X } from 'lucide-react-native';
-import { Meal, FoodItem, MealType, sourceLabel, totalCarbs, uid, validateMeal } from '../lib/model';
+import {
+  ArrowLeft,
+  Check,
+  Minus,
+  Plus,
+  Save,
+  ScanLine,
+  Flame,
+  Trash2,
+  X,
+} from 'lucide-react-native';
+import {
+  Meal,
+  FoodItem,
+  MealType,
+  sourceLabel,
+  totalCarbs,
+  totalCalories,
+  uid,
+  validateMeal,
+} from '../lib/model';
 import { analyzePhoto, analysisUrl } from '../lib/analysis';
 import { colors as c, fonts as f } from '../lib/theme';
 import { Button, Chip, Field, FoodPhoto, IconButton, Type } from './ui';
@@ -23,7 +42,11 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
     ...initial,
     items: initial.items.map((i) => ({ ...i })),
   });
-  const [scanning, setScanning] = useState(!existing && initial.source === 'sample');
+  const [scanning, setScanning] = useState(
+    !existing &&
+      (initial.source === 'sample' ||
+        (!!initial.photo && !!analysisUrl && initial.source !== 'ai')),
+  );
   const [saving, setSaving] = useState(false);
   const [checked, setChecked] = useState(existing || initial.source !== 'ai');
   const [error, setError] = useState<string | null>(null);
@@ -32,24 +55,67 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
   const mounted = useRef(true);
   const { saveMeal, deleteMeal, setDraft, notify, tap } = useApp();
   const split = useWindowDimensions().width >= 800;
+  const analyze = useCallback(async (photo: string) => {
+    if (abort.current) return;
+    setError(null);
+    setScanning(true);
+    const controller = new AbortController();
+    abort.current = controller;
+    const timeout = setTimeout(() => controller.abort('timeout'), 45000);
+    try {
+      const result = await analyzePhoto(photo, controller.signal);
+      if (mounted.current && !controller.signal.aborted && abort.current === controller) {
+        setMeal((m) => ({ ...m, ...result, source: 'ai' }));
+        setChecked(false);
+      }
+    } catch (e) {
+      if (
+        mounted.current &&
+        abort.current === controller &&
+        controller.signal.reason !== 'cancelled'
+      )
+        setError(
+          controller.signal.aborted
+            ? 'That estimate took too long. Try again, or enter the nutrition yourself.'
+            : e instanceof Error
+              ? e.message
+              : 'Couldn’t estimate this photo.',
+        );
+    } finally {
+      clearTimeout(timeout);
+      if (abort.current === controller) {
+        abort.current = null;
+        if (mounted.current) setScanning(false);
+      }
+    }
+  }, []);
   useEffect(() => {
     mounted.current = true;
-    const timer =
+    let timer =
       !existing && initial.source === 'sample'
         ? setTimeout(() => setScanning(false), 2100)
         : undefined;
+    if (
+      !existing &&
+      initial.photo &&
+      analysisUrl &&
+      initial.source !== 'sample' &&
+      initial.source !== 'ai'
+    )
+      timer = setTimeout(() => void analyze(initial.photo!), 0);
     return () => {
       mounted.current = false;
       if (timer) clearTimeout(timer);
       abort.current?.abort('cancelled');
+      abort.current = null;
     };
-  }, [existing, initial.source]);
+  }, [existing, initial.source, initial.photo, analyze]);
   const patch = (values: Partial<Meal>) => setMeal((m) => ({ ...m, ...values }));
   const itemPatch = (id: string, values: Partial<FoodItem>) =>
     setMeal((m) => ({ ...m, items: m.items.map((i) => (i.id === id ? { ...i, ...values } : i)) }));
   const close = () => {
     if (saving) return;
-    abort.current?.abort();
+    abort.current?.abort('cancelled');
     setDraft(null);
     if (router.canGoBack()) router.back();
     else router.replace('/');
@@ -80,34 +146,6 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
       if (mounted.current) setSaving(false);
     }
   };
-  const analyze = async () => {
-    if (!meal.photo || scanning) return;
-    tap();
-    setError(null);
-    setScanning(true);
-    const controller = new AbortController();
-    abort.current = controller;
-    const timeout = setTimeout(() => controller.abort(), 45000);
-    try {
-      const result = await analyzePhoto(meal.photo, controller.signal);
-      if (mounted.current) {
-        setMeal((m) => ({ ...m, ...result, source: 'ai' }));
-        setChecked(false);
-      }
-    } catch (e) {
-      if (mounted.current && controller.signal.reason !== 'cancelled')
-        setError(
-          controller.signal.aborted
-            ? 'That estimate took too long. Try again, or enter the carbs yourself.'
-            : e instanceof Error
-              ? e.message
-              : 'Couldn’t estimate this photo.',
-        );
-    } finally {
-      clearTimeout(timeout);
-      if (mounted.current) setScanning(false);
-    }
-  };
   const remove = async () => {
     setSaving(true);
     try {
@@ -121,6 +159,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
     }
   };
   const total = totalCarbs(meal.items);
+  const calories = totalCalories(meal.items);
   const valid = validateMeal(meal) === null && checked;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
@@ -137,10 +176,10 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
               disabled={saving}
             />
             <Type style={{ fontFamily: f.displayBold, fontSize: 20 }}>
-              {scanning ? 'a little magic.' : existing ? 'a little memory.' : 'a little snap.'}
+              {scanning ? 'scanning your plate.' : existing ? 'a little memory.' : 'a little snap.'}
             </Type>
           </View>
-          <Chip icon={Sparkles}>{scanning ? 'IN FOCUS' : sourceLabel[meal.source]}</Chip>
+          <Chip icon={ScanLine}>{scanning ? 'SCANNING' : sourceLabel[meal.source]}</Chip>
         </View>
         <ScrollView
           keyboardShouldPersistTaps="handled"
@@ -155,6 +194,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                 variant="ghost"
                 onPress={() => {
                   abort.current?.abort('cancelled');
+                  abort.current = null;
                   setScanning(false);
                 }}
                 style={{ alignSelf: 'center', marginTop: 15 }}
@@ -193,9 +233,9 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                       <View
                         style={{ flexDirection: 'row', gap: 5, alignItems: 'center', marginTop: 8 }}
                       >
-                        <Sparkles size={12} color={c.purple} />
+                        <Flame size={14} color={c.purple} />
                         <Type style={{ fontSize: 11, color: c.purple }}>
-                          a little clarity, attached.
+                          {calories === null ? 'Add calories below' : `${calories} kcal`}
                         </Type>
                       </View>
                     </View>
@@ -219,34 +259,44 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                     >
                       THE LITTLE DETAILS
                     </Type>
-                    <Type kind="title">{existing ? 'Remember this bite?' : 'Make it yours.'}</Type>
+                    <Type kind="title">
+                      {existing
+                        ? 'Remember this bite?'
+                        : meal.source === 'ai'
+                          ? 'Your scan is ready.'
+                          : 'Make it yours.'}
+                    </Type>
                     <Type kind="small" style={{ marginTop: 7 }}>
-                      A photo can’t know every ingredient. Check the portions and carbs before you
-                      save.
+                      {meal.source === 'ai'
+                        ? 'Calories, carbs and portions are filled in. Tap any detail to adjust it before saving.'
+                        : 'Check the portions, carbs and calories before you save.'}
                     </Type>
                   </View>
                   {meal.photo && meal.source !== 'sample' && (
                     <View style={s.aiCard}>
-                      <Sparkles size={18} color={c.purple} />
+                      <ScanLine size={22} color={c.purple} />
                       <View style={{ flex: 1, gap: 8 }}>
                         <Type style={{ fontSize: 13, fontFamily: f.bold }}>
-                          {analysisUrl ? 'Let’s take a closer look' : 'Your photo is ready to keep'}
+                          {analysisUrl
+                            ? meal.source === 'ai'
+                              ? 'Estimated from your photo'
+                              : 'Try another scan'
+                            : 'Your photo is ready to keep'}
                         </Type>
                         <Type kind="small">
                           {analysisUrl
-                            ? 'Choosing an estimate sends this photo to Google Gemini. Portions and hidden ingredients still need your review.'
-                            : 'Add the carbs from your nutrition label below. Connect photo estimates using the setup guide whenever you’re ready.'}
+                            ? 'Photo scans use Google Gemini. You can edit every value; portions and hidden ingredients may affect the estimate.'
+                            : 'Automatic photo estimates aren’t connected yet. Add nutrition from a label below, or connect the photo service in the setup guide.'}
                         </Type>
                         {analysisUrl && (
                           <Button
-                            label={
-                              meal.source === 'ai'
-                                ? 'Estimate this photo again'
-                                : 'Estimate this photo'
-                            }
+                            label={meal.source === 'ai' ? 'Scan again' : 'Retry scan'}
                             variant="secondary"
-                            icon={Sparkles}
-                            onPress={() => void analyze()}
+                            icon={ScanLine}
+                            onPress={() => {
+                              tap();
+                              if (meal.photo) void analyze(meal.photo);
+                            }}
                           />
                         )}
                       </View>
@@ -361,6 +411,17 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                           placeholder="e.g. ½ cup or 100 g"
                           maxLength={80}
                         />
+                        <Field
+                          label={`Food ${index + 1} calories (kcal / portion)`}
+                          keyboardType="decimal-pad"
+                          value={Number.isFinite(item.calories) ? String(item.calories) : ''}
+                          onChangeText={(value) =>
+                            itemPatch(item.id, {
+                              calories: value.trim() ? Number(value.replace(',', '.')) : undefined,
+                            })
+                          }
+                          placeholder="Optional · from a scan or nutrition label"
+                        />
                         <View style={{ flexDirection: 'row', gap: 10 }}>
                           <Field
                             inline
@@ -451,7 +512,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                   {meal.source === 'ai' && (
                     <Pressable
                       accessibilityRole="checkbox"
-                      accessibilityLabel="I checked the portions and carb estimates"
+                      accessibilityLabel="I checked the portions and nutrition estimates"
                       accessibilityState={{ checked }}
                       onPress={() => setChecked(!checked)}
                       style={{
@@ -470,7 +531,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                         {checked && <Check size={15} color={c.white} />}
                       </View>
                       <Type style={{ fontSize: 13, flex: 1 }}>
-                        I checked the portions and carb estimates.
+                        I checked the portions and nutrition estimates.
                       </Type>
                     </Pressable>
                   )}

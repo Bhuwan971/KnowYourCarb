@@ -3,6 +3,7 @@ export type FoodItem = {
   name: string;
   portion: string;
   carbs: number;
+  calories?: number;
   servings: number;
 };
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -26,6 +27,10 @@ export const round = (n: number) =>
   Math.round((n + Number.EPSILON * Math.max(1, Math.abs(n))) * 10) / 10;
 export const totalCarbs = (items: FoodItem[]) =>
   round(items.reduce((sum, item) => sum + item.carbs * item.servings, 0));
+export const totalCalories = (items: FoodItem[]): number | null =>
+  items.length && items.every((item) => Number.isFinite(item.calories))
+    ? round(items.reduce((sum, item) => sum + item.calories! * item.servings, 0))
+    : null;
 export function localDay(date: string | Date): string {
   const d = new Date(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -44,6 +49,14 @@ export function validateMeal(meal: Meal): string | null {
     return 'Add a food name and portion for every item.';
   if (meal.items.some((i) => !Number.isFinite(i.carbs) || i.carbs < 0 || i.carbs > 2000))
     return 'Carbs must be between 0 and 2,000 g per portion.';
+  if (
+    meal.items.some(
+      (i) =>
+        i.calories !== undefined &&
+        (!Number.isFinite(i.calories) || i.calories < 0 || i.calories > 20000),
+    )
+  )
+    return 'Calories must be between 0 and 20,000 kcal per portion, or left blank.';
   if (meal.items.some((i) => !Number.isFinite(i.servings) || i.servings <= 0 || i.servings > 100))
     return 'Servings must be greater than 0 and at most 100.';
   return null;

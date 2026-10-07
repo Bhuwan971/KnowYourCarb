@@ -174,21 +174,37 @@ export function PageHeading({
   title,
   subtitle,
   action,
+  compact = false,
 }: {
   eyebrow: string;
   title: string;
   subtitle: string;
   action?: React.ReactNode;
+  compact?: boolean;
 }) {
   const mobile = useWindowDimensions().width < 600;
   return (
-    <View style={[s.heading, mobile && { marginBottom: 24 }]}>
+    <View style={[s.heading, mobile && { marginBottom: compact ? 18 : 24 }]}>
       <View style={{ flex: 1 }}>
-        <Type style={s.eyebrow}>{eyebrow}</Type>
-        <Type kind="title" style={{ fontSize: mobile ? 31 : 38, lineHeight: mobile ? 38 : 46 }}>
+        <Type style={[s.eyebrow, compact && mobile && { lineHeight: 14 }]}>{eyebrow}</Type>
+        <Type
+          kind="title"
+          style={{
+            fontSize: mobile ? (compact ? 28 : 31) : 38,
+            lineHeight: mobile ? (compact ? 34 : 38) : 46,
+          }}
+        >
           {title}
         </Type>
-        <Type style={{ color: c.muted, marginTop: 9, fontSize: mobile ? 13 : 14 }}>{subtitle}</Type>
+        <Type
+          style={{
+            color: c.muted,
+            marginTop: compact && mobile ? 6 : 9,
+            fontSize: mobile ? 13 : 14,
+          }}
+        >
+          {subtitle}
+        </Type>
       </View>
       {action}
     </View>

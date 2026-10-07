@@ -6,6 +6,7 @@ import {
   localDay,
   newMeal,
   totalCarbs,
+  totalCalories,
   validateMeal,
 } from '../src/lib/model.ts';
 const validMeal = () => ({
@@ -54,4 +55,25 @@ test('zero-carbohydrate food is valid, unlike missing carbohydrate information',
   assert.equal(isMeal(meal), true);
   const unreadable = { ...meal, createdAt: 'invalid' };
   assert.equal(isMeal(unreadable), false);
+});
+test('calories scale with portions and incomplete calorie totals stay unknown', () => {
+  assert.equal(
+    totalCalories([
+      { calories: 111, servings: 1.5 },
+      { calories: 67, servings: 0.5 },
+    ]),
+    200,
+  );
+  assert.equal(totalCalories([{ calories: 0, servings: 1 }]), 0);
+  assert.equal(totalCalories([{ calories: 111, servings: 1 }, { servings: 1 }]), null);
+  assert.equal(totalCalories([]), null);
+});
+test('old journals load without calories; invalid supplied calories cannot save', () => {
+  assert.equal(isMeal(validMeal()), true);
+  for (const calories of [NaN, -1, Infinity, null, '111', 20001]) {
+    const meal = validMeal();
+    meal.items[0].calories = calories;
+    assert.ok(validateMeal(meal));
+    assert.equal(isMeal(meal), false);
+  }
 });
