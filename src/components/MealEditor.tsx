@@ -26,7 +26,7 @@ import {
   uid,
   validateMeal,
 } from '../lib/model';
-import { analyzePhoto, analysisUrl } from '../lib/analysis';
+import { analyzePhoto, analysisUrl, scanTimeoutMs } from '../lib/analysis';
 import { colors as c, fonts as f } from '../lib/theme';
 import { Button, Chip, Field, FoodPhoto, IconButton, Type } from './ui';
 import { Scanner } from './Scanner';
@@ -58,7 +58,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
     setScanning(true);
     const controller = new AbortController();
     abort.current = controller;
-    const timeout = setTimeout(() => controller.abort('timeout'), 85000);
+    const timeout = setTimeout(() => controller.abort('timeout'), scanTimeoutMs);
     try {
       const result = await analyzePhoto(photo, controller.signal);
       if (mounted.current && !controller.signal.aborted && abort.current === controller) {

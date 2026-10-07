@@ -9,6 +9,7 @@ export function Scanner({ photo, sample = false }: { photo?: string; sample?: bo
   const [bounce] = useState(() => new Animated.Value(0));
   const [reduced, setReduced] = useState(true);
   const [step, setStep] = useState(0);
+  const [slow, setSlow] = useState(false);
   useEffect(() => {
     void AccessibilityInfo.isReduceMotionEnabled().then(setReduced);
     const listener = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced);
@@ -53,7 +54,11 @@ export function Scanner({ photo, sample = false }: { photo?: string; sample?: bo
   }, [reduced, progress, bounce]);
   useEffect(() => {
     const timer = setInterval(() => setStep((s) => (s + 1) % 3), 1300);
-    return () => clearInterval(timer);
+    const slowTimer = setTimeout(() => setSlow(true), 15_000);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(slowTimer);
+    };
   }, []);
   return (
     <View style={s.wrap}>
@@ -94,13 +99,9 @@ export function Scanner({ photo, sample = false }: { photo?: string; sample?: bo
         Reading your plate…
       </Type>
       <Type kind="small" style={{ marginTop: 9 }}>
-        {
-          [
-            'Identifying the foods and portions',
-            'Estimating calories and total carbs',
-            'Getting your editable details ready',
-          ][step]
-        }
+        {slow
+          ? 'Still waiting for your estimate. You can review manually below.'
+          : 'Identifying foods, portions and nutrition'}
       </Type>
       <View style={{ flexDirection: 'row', gap: 6, marginTop: 18 }}>
         {[0, 1, 2].map((i) => (

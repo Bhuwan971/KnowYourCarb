@@ -164,6 +164,40 @@ test('one correction pass repairs inconsistent estimates; a second failure is re
   }
 });
 
+test('the correction pass shares the original deadline instead of starting a new timer', async () => {
+  const signals = [];
+  const invalid = response([
+    {
+      name: 'Chicken',
+      portion: '100 g',
+      carbs: 156,
+      calories: 624,
+      protein: 31,
+      fat: 4,
+      portionGrams: 100,
+    },
+  ]);
+  await assert.rejects(
+    estimate('image', {
+      provider: 'openrouter',
+      apiKey: 'test',
+      model: 'vision-model',
+      timeoutMs: 40,
+      fetchImpl: async (_, options) => {
+        signals.push(options.signal);
+        if (signals.length === 2) return new Promise(() => {});
+        return Response.json({
+          choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(invalid) } }],
+        });
+      },
+    }),
+    { name: 'TimeoutError' },
+  );
+  assert.equal(signals.length, 2);
+  assert.equal(signals[0], signals[1]);
+  assert.equal(signals[1].aborted, true);
+});
+
 test('reference catalog entries contain physically consistent nutrition and source identities', () => {
   for (const [id, food] of referenceFoods) {
     const { carbs, protein, fat, sugar, fiber } = food.per100g;

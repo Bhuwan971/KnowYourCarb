@@ -49,6 +49,54 @@ test('server proxies the image, disables interaction storage and returns validat
       assert.deepEqual(await response.json(), result);
       assert.equal(request.store, false);
       assert.equal(request.input[1].data, image);
+      assert.equal(request.generation_config.thinking_level, 'low');
+    },
+  );
+});
+test('a stalled provider returns a timeout response with a manual fallback', async () => {
+  await withServer(
+    { apiKey: 'test', timeoutMs: 20, fetchImpl: () => new Promise(() => {}) },
+    async (url) => {
+      const response = await fetch(`${url}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image, mimeType: 'image/jpeg' }),
+      });
+      assert.equal(response.status, 504);
+      assert.match((await response.json()).error, /took too long.*review manually/);
+    },
+  );
+});
+
+test('disconnecting from the scan cancels the provider request', async () => {
+  let started;
+  const ready = new Promise((resolve) => {
+    started = resolve;
+  });
+  await withServer(
+    {
+      apiKey: 'test',
+      fetchImpl: async (_, { signal }) => {
+        started(signal);
+        return new Promise(() => {});
+      },
+    },
+    async (url) => {
+      const controller = new AbortController();
+      const request = fetch(`${url}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image, mimeType: 'image/jpeg' }),
+        signal: controller.signal,
+      });
+      const upstreamSignal = await ready;
+      const cancelled = new Promise((resolve) =>
+        upstreamSignal.addEventListener('abort', resolve, { once: true }),
+      );
+      controller.abort();
+      await assert.rejects(request, { name: 'AbortError' });
+      await cancelled;
+      assert.equal(upstreamSignal.aborted, true);
     },
   );
 });

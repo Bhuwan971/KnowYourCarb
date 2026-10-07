@@ -166,6 +166,38 @@ test('incomplete calorie results fall back to editable manual nutrition', async 
   await expect(page.getByRole('button', { name: 'Open Manual quinoa', exact: true })).toBeVisible();
 });
 
+test('a stalled scan times out, preserves manual edits and allows a fresh retry', async ({
+  page,
+}) => {
+  await page.clock.install();
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let uploads = 0;
+  await page.route('**/analyze', async (route) => {
+    uploads += 1;
+    if (uploads === 1) await pending;
+    await route.fulfill({ json: estimate }).catch(() => {});
+  });
+  await importPhoto(page);
+  await expect.poll(() => uploads).toBe(1);
+  await page.clock.fastForward(15_000);
+  await expect(
+    page.getByText('Still waiting for your estimate. You can review manually below.'),
+  ).toBeVisible();
+  await page.clock.fastForward(30_001);
+  await expect(page.getByRole('alert')).toContainText('That estimate took too long.');
+  await expect(page.getByText('Reading your plate…')).toHaveCount(0);
+  await expect(page.getByRole('img', { name: 'Food photo', exact: true })).toBeVisible();
+  await page.getByLabel('Memory name', { exact: true }).fill('My manual lunch');
+  release();
+  await expect(page.getByLabel('Memory name', { exact: true })).toHaveValue('My manual lunch');
+  await page.getByRole('button', { name: 'Retry scan', exact: true }).click();
+  await expect(page.getByText(estimate.title, { exact: true })).toBeVisible();
+  expect(uploads).toBe(2);
+});
+
 test('scan results stay minimal; extra nutrients, portion corrections and unknown values persist', async ({
   page,
 }) => {

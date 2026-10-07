@@ -46,6 +46,7 @@ export function createApp({
   ),
   fetchImpl = fetch,
   now = Date.now,
+  timeoutMs,
 } = {}) {
   const limits = new Map();
   const server = createServer(async (req, res) => {
@@ -107,10 +108,25 @@ export function createApp({
       req.resume();
       return;
     }
+    const controller = new AbortController();
+    const cancel = () => {
+      if (!res.writableEnded) controller.abort();
+    };
+    res.on('close', cancel);
     try {
       const body = await readJson(req);
       const image = validateImage(body);
-      send(200, await estimate(image, { provider, apiKey, model, fetchImpl }));
+      send(
+        200,
+        await estimate(image, {
+          provider,
+          apiKey,
+          model,
+          fetchImpl,
+          timeoutMs,
+          signal: controller.signal,
+        }),
+      );
     } catch (error) {
       // Never log photographs, keys, or upstream response bodies.
       const timedOut = error.name === 'TimeoutError' || error.name === 'AbortError';
@@ -121,6 +137,8 @@ export function createApp({
             ? error.message
             : 'The photo service is unavailable. You can still save your snap manually.',
       });
+    } finally {
+      res.off('close', cancel);
     }
   });
   server.requestTimeout = 90_000;

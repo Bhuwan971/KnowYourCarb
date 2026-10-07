@@ -36,6 +36,54 @@ test('OpenRouter sends a vision request with a strict schema and validates calor
   assert.equal(sent.body.response_format.json_schema.schema.additionalProperties, false);
   assert.equal(sent.body.provider.require_parameters, true);
   assert.equal(sent.body.provider.data_collection, 'deny');
+  assert.equal(sent.body.reasoning.effort, 'low');
+});
+
+test('one scan deadline covers stalled provider headers and body reads for both providers', async () => {
+  for (const provider of ['openrouter', 'gemini']) {
+    for (const stalledPhase of ['headers', 'body']) {
+      let signal;
+      await assert.rejects(
+        estimate('image', {
+          provider,
+          apiKey: 'test',
+          model: 'vision-model',
+          timeoutMs: 20,
+          fetchImpl: async (_, options) => {
+            signal = options.signal;
+            if (stalledPhase === 'headers') return new Promise(() => {});
+            return { ok: true, json: () => new Promise(() => {}) };
+          },
+        }),
+        { name: 'TimeoutError' },
+      );
+      assert.equal(signal.aborted, true);
+    }
+  }
+});
+
+test('cancelling a scan stops waiting even if the provider ignores abort', async () => {
+  const controller = new AbortController();
+  let upstreamSignal;
+  let started;
+  const ready = new Promise((resolve) => {
+    started = resolve;
+  });
+  const result = estimate('image', {
+    provider: 'openrouter',
+    apiKey: 'test',
+    model: 'vision-model',
+    signal: controller.signal,
+    fetchImpl: async (_, options) => {
+      upstreamSignal = options.signal;
+      started();
+      return new Promise(() => {});
+    },
+  });
+  await ready;
+  controller.abort();
+  await assert.rejects(result, { name: 'AbortError' });
+  assert.equal(upstreamSignal.aborted, true);
 });
 
 test('OpenRouter rejects truncated, refused, malformed and incomplete nutrition results', async () => {
@@ -137,6 +185,7 @@ test('the dev launcher confines secrets fetched by Infisical to the photo servic
   const { join } = await import('node:path');
   const { fileURLToPath } = await import('node:url');
   const { spawn } = await import('node:child_process');
+  const { createServer } = await import('node:net');
   const root = await mkdtemp(join(tmpdir(), 'carbsy-infisical-test-'));
   try {
     await mkdir(join(root, 'bin'));
@@ -179,12 +228,26 @@ writeFileSync('expo-result.json', JSON.stringify({
 setInterval(() => {}, 1000);
 `,
     );
+    // Use isolated ports so this test also runs while a real dev session is open.
+    const probes = [createServer(), createServer()];
+    await Promise.all(
+      probes.map(
+        (probe) =>
+          new Promise((resolve, reject) => {
+            probe.once('error', reject);
+            probe.listen(0, '0.0.0.0', resolve);
+          }),
+      ),
+    );
+    const [servicePort, expoPort] = probes.map((probe) => probe.address().port);
+    await Promise.all(probes.map((probe) => new Promise((resolve) => probe.close(resolve))));
     const launcher = fileURLToPath(new URL('../scripts/start-dev.mjs', import.meta.url));
-    const child = spawn(process.execPath, [launcher, '--infisical'], {
+    const child = spawn(process.execPath, [launcher, '--infisical', '--port', String(expoPort)], {
       cwd: root,
       env: {
         ...process.env,
         PATH: `${join(root, 'bin')}:${process.env.PATH}`,
+        PORT: String(servicePort),
         EXPO_PUBLIC_ANALYSIS_URL: 'http://localhost:3001',
       },
       stdio: 'pipe',

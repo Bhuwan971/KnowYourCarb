@@ -158,16 +158,17 @@ export function validateImage(body) {
 }
 async function estimateOnce(
   image,
-  { provider = 'gemini', apiKey, model, fetchImpl = fetch, correction = '' },
+  { provider = 'gemini', apiKey, model, fetchImpl = fetch, correction = '', signal },
 ) {
+  signal.throwIfAborted();
   if (provider === 'openrouter')
-    return estimateOpenRouter(image, { apiKey, model, fetchImpl, correction });
+    return estimateOpenRouter(image, { apiKey, model, fetchImpl, correction, signal });
   const response = await fetchImpl(
     'https://generativelanguage.googleapis.com/v1beta/interactions',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      signal: AbortSignal.timeout(40_000),
+      signal,
       body: JSON.stringify({
         model,
         store: false,
@@ -180,7 +181,7 @@ async function estimateOnce(
           { type: 'image', data: image, mime_type: 'image/jpeg' },
         ],
         response_format: { type: 'text', mime_type: 'application/json', schema: responseSchema },
-        generation_config: { max_output_tokens: 8000, thinking_level: 'medium' },
+        generation_config: { max_output_tokens: 8000, thinking_level: 'low' },
       }),
     },
   );
@@ -219,11 +220,11 @@ function parseEstimate(text) {
   return validateAnalysis(parsed);
 }
 
-async function estimateOpenRouter(image, { apiKey, model, fetchImpl, correction }) {
+async function estimateOpenRouter(image, { apiKey, model, fetchImpl, correction, signal }) {
   const response = await fetchImpl('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    signal: AbortSignal.timeout(40_000),
+    signal,
     body: JSON.stringify({
       model,
       messages: [
@@ -245,7 +246,7 @@ async function estimateOpenRouter(image, { apiKey, model, fetchImpl, correction 
       },
       provider: { require_parameters: true, data_collection: 'deny' },
       max_tokens: 8000,
-      reasoning: { effort: 'medium', exclude: true },
+      reasoning: { effort: 'low', exclude: true },
     }),
   });
   if (!response.ok) {
@@ -277,11 +278,39 @@ async function estimateOpenRouter(image, { apiKey, model, fetchImpl, correction 
   return parseEstimate(choice.message.content);
 }
 
-export async function estimate(image, options) {
+export const estimateTimeoutMs = 35_000;
+export async function estimate(
+  image,
+  { signal: callerSignal, timeoutMs = estimateTimeoutMs, ...options },
+) {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(new DOMException('Photo estimate timed out.', 'TimeoutError')),
+    timeoutMs,
+  );
+  const signal = callerSignal
+    ? AbortSignal.any([callerSignal, controller.signal])
+    : controller.signal;
+  let onAbort;
+  const cancelled = new Promise((_, reject) => {
+    onAbort = () => reject(signal.reason);
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  });
+  try {
+    // Include headers, body reads, validation and the correction in ONE budget.
+    return await Promise.race([cancelled, estimateWithCorrection(image, { ...options, signal })]);
+  } finally {
+    clearTimeout(timeout);
+    signal.removeEventListener('abort', onAbort);
+  }
+}
+
+async function estimateWithCorrection(image, options) {
   try {
     return await estimateOnce(image, options);
   } catch (error) {
-    if (!error.nutritionError) throw error;
+    if (!error.nutritionError || options.signal.aborted) throw error;
     // One bounded correction pass for inconsistent nutrition, never silent clamping.
     return estimateOnce(image, {
       ...options,

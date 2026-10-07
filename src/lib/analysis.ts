@@ -1,8 +1,13 @@
 import { photoBase64 } from './photos';
 import { FoodItem, nutrientFields, uid } from './model';
+import { withAbort } from './abort';
 export const analysisUrl = process.env.EXPO_PUBLIC_ANALYSIS_URL?.replace(/\/$/, '');
+export const scanTimeoutMs = 45_000;
 export type Analysis = { title: string; items: FoodItem[]; uncertainty: string };
-export async function analyzePhoto(uri: string, signal: AbortSignal): Promise<Analysis> {
+export function analyzePhoto(uri: string, signal: AbortSignal): Promise<Analysis> {
+  return withAbort(signal, () => requestAnalysis(uri, signal));
+}
+async function requestAnalysis(uri: string, signal: AbortSignal): Promise<Analysis> {
   if (!analysisUrl)
     throw new Error(
       'Photo estimates aren’t connected yet. You can still add carbs from a label and save your snap.',
