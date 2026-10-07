@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { estimate, validateImage } from './analysis.mjs';
+import { analysisConfig } from './config.mjs';
 const MAX_BODY = 6_100_000;
 function readJson(req) {
   return new Promise((resolve, reject) => {
@@ -37,8 +38,9 @@ function readJson(req) {
   });
 }
 export function createApp({
-  apiKey = process.env.GEMINI_API_KEY,
-  model = process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+  provider = analysisConfig().provider,
+  apiKey = analysisConfig().apiKey,
+  model = analysisConfig().model,
   origins = (process.env.ALLOWED_ORIGINS || 'http://localhost:8081,http://127.0.0.1:8081').split(
     ',',
   ),
@@ -73,7 +75,7 @@ export function createApp({
       return;
     }
     if (req.url === '/health' && req.method === 'GET') {
-      send(200, { ok: true, configured: Boolean(apiKey) });
+      send(200, { ok: true, configured: Boolean(apiKey), provider });
       return;
     }
     if (req.url !== '/analyze' || req.method !== 'POST') {
@@ -91,7 +93,8 @@ export function createApp({
     limits.set(address, limit);
     if (!apiKey) {
       send(503, {
-        error: 'Photo estimates aren’t connected yet. Add the carbs yourself and keep your snap.',
+        error:
+          'AI estimates aren’t connected yet. Once connected, a snap automatically fills in calories and carbs. You can enter them yourself for now.',
       });
       return;
     }
@@ -107,7 +110,7 @@ export function createApp({
     try {
       const body = await readJson(req);
       const image = validateImage(body);
-      send(200, await estimate(image, { apiKey, model, fetchImpl }));
+      send(200, await estimate(image, { provider, apiKey, model, fetchImpl }));
     } catch (error) {
       // Never log photographs, keys, or upstream response bodies.
       const timedOut = error.name === 'TimeoutError' || error.name === 'AbortError';
@@ -129,7 +132,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const port = Number(process.env.PORT || 3001);
   server.listen(port, '0.0.0.0', () =>
     console.log(
-      `Carbsy local photo service: http://localhost:${port}\nPhoto estimates: ${process.env.GEMINI_API_KEY ? 'configured' : 'not configured (manual journal works)'}`,
+      `Carbsy local photo service: http://localhost:${port}\nPhoto estimates: ${analysisConfig().apiKey ? `configured (${analysisConfig().provider})` : 'not configured (manual journal works)'}`,
     ),
   );
 }

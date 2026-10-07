@@ -9,12 +9,20 @@ export async function analyzePhoto(uri: string, signal: AbortSignal): Promise<An
     );
   const image = await photoBase64(uri);
   if (signal.aborted) throw new Error('Photo scan cancelled.');
-  const response = await fetch(`${analysisUrl}/analyze`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image, mimeType: 'image/jpeg' }),
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${analysisUrl}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image, mimeType: 'image/jpeg' }),
+      signal,
+    });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new Error(
+      'Couldn’t reach the AI service. Try again when you’re connected, or enter the nutrition yourself.',
+    );
+  }
   const data = await response.json();
   if (!response.ok)
     throw new Error(

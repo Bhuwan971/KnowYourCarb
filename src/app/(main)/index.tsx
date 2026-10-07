@@ -9,10 +9,7 @@ import {
   Images,
   NotebookPen,
   UtensilsCrossed,
-  Wheat,
-  Check,
   MoveLeft,
-  ScanLine,
   Plus,
 } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
@@ -21,13 +18,14 @@ import { photos, sampleMeal } from '../../lib/samples';
 import { colors as c, fonts as f } from '../../lib/theme';
 import { analysisUrl } from '../../lib/analysis';
 import { Chip, FoodPhoto, IconButton, Type } from '../../components/ui';
-import { Mascot } from '../../components/Mascot';
-import { PageHeading, TextLink } from '../../components/Shell';
+import { TextLink } from '../../components/Shell';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MemoryCard } from '../../components/MemoryCard';
 import { usePhotoActions } from '../../components/usePhotoActions';
 
 export default function SnapScreen() {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const split = width >= 1180;
   const mobile = width < 600;
   const { meals, settings, setDraft, tap, notify } = useApp();
@@ -80,36 +78,30 @@ export default function SnapScreen() {
   };
   const greeting =
     new Date().getHours() < 12
-      ? 'GOOD MORNING'
+      ? 'Good morning'
       : new Date().getHours() < 17
-        ? 'HELLO, AFTERNOON'
-        : 'HEY, GOOD EVENING';
+        ? 'Good afternoon'
+        : 'Good evening';
   return (
     <>
-      <PageHeading
-        compact={mobile}
-        eyebrow={`${greeting}${settings.name ? `, ${settings.name.toUpperCase()}` : ''} ✦`}
-        title="Good food. Less guesswork."
-        subtitle="Snap your plate. Get a little clarity. Go enjoy your day."
-        action={
-          !mobile ? (
-            <View style={s.dayBadge}>
-              <View style={s.greenDot} />
-              <Type kind="small" style={{ color: c.ink }}>
-                {new Date().toLocaleDateString([], { month: 'short', day: 'numeric' })} · A fresh
-                little day
-              </Type>
-            </View>
-          ) : undefined
-        }
-      />
+      <View style={s.greetingRow}>
+        <Type accessibilityRole="header" style={s.greeting}>
+          {greeting}
+          {settings.name ? `, ${settings.name}` : ''}
+        </Type>
+        {!mobile && (
+          <Type kind="small">
+            {new Date().toLocaleDateString([], { month: 'short', day: 'numeric' })}
+          </Type>
+        )}
+      </View>
       <View style={{ flexDirection: split ? 'row' : 'column', gap: 25 }}>
-        <View style={{ flex: split ? 1.85 : undefined }}>
+        <View style={{ flex: split ? 2.2 : undefined }}>
           <View style={s.cameraCard}>
             <View
               style={[
                 s.preview,
-                { height: mobile ? Math.max(360, Math.min(460, height * 0.48)) : 480 },
+                { height: mobile ? Math.max(360, height - insets.top - insets.bottom - 250) : 640 },
               ]}
             >
               {live ? (
@@ -127,7 +119,7 @@ export default function SnapScreen() {
                 <FoodPhoto source={photos.bowl} style={StyleSheet.absoluteFill} />
               )}
               <LinearGradient
-                colors={['rgba(0,0,0,0.24)', 'transparent', 'rgba(20,20,20,0.55)']}
+                colors={['rgba(0,0,0,0.28)', 'transparent', 'rgba(20,20,20,0.75)']}
                 style={StyleSheet.absoluteFill}
               />
               <View style={s.previewTop}>
@@ -136,7 +128,7 @@ export default function SnapScreen() {
                   <Type
                     style={{ fontSize: 10, color: c.white, fontFamily: f.bold, letterSpacing: 1.4 }}
                   >
-                    {live ? 'YOUR PLATE, IN FOCUS' : 'A TASTE OF THE EXPERIENCE'}
+                    {live ? 'YOUR PLATE, IN FOCUS' : 'CAMERA PREVIEW'}
                   </Type>
                 </View>
                 <IconButton
@@ -185,86 +177,48 @@ export default function SnapScreen() {
                   />
                 ))}
               </View>
-              {!live && (
-                <View style={[s.sticker, mobile && { right: 20, top: 80 }]}>
-                  <Wheat size={18} color={c.purple} />
-                  <Type style={{ fontFamily: f.displayBold, fontSize: 29, lineHeight: 35 }}>
-                    40<Type style={{ fontSize: 16 }}>g</Type>
-                  </Type>
-                  <Type style={{ fontSize: 10, color: c.muted, lineHeight: 15 }}>
-                    carbs · sample estimate
-                  </Type>
-                  <View
-                    style={{ flexDirection: 'row', gap: 4, alignItems: 'center', marginTop: 5 }}
-                  >
-                    <Check size={11} color={c.purple} />
-                    <Type style={{ fontSize: 9, color: c.purple }}>A little more clarity</Type>
-                  </View>
-                </View>
-              )}
-              <View style={s.previewBottom}>
-                <Type
-                  style={{
-                    color: c.white,
-                    fontFamily: f.displayBold,
-                    fontSize: 23,
-                    lineHeight: 28,
-                  }}
-                >
-                  {'Your next bite,\na little brighter.'}
-                </Type>
-                <Type style={{ color: '#F0EFE8', fontSize: 11, marginTop: 7 }}>
-                  {live
-                    ? analysisUrl
-                      ? 'Snap to estimate with Google Gemini.'
-                      : 'Center your food. Tap to snap.'
-                    : analysisUrl
-                      ? 'Snap or import to auto-scan with Google Gemini.'
-                      : 'One photo. A food memory that stays with you.'}
+              <View pointerEvents="none" style={s.previewBottom}>
+                <Type style={{ color: c.white, fontSize: 12, textAlign: 'center' }}>
+                  {live ? 'Center your food in the frame' : 'Open the camera or import a photo'}
                 </Type>
               </View>
-            </View>
-            <View style={s.cameraControls}>
-              <IconButton
-                label="Import a food photo"
-                icon={Images}
-                onPress={() => void pick()}
-                disabled={busy || taking}
-                style={s.controlButton}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Snap a meal"
-                accessibilityState={{ disabled: busy || taking || (!!live && !ready) }}
-                disabled={busy || taking || (!!live && !ready)}
-                onPress={() => void snap()}
-                style={({ pressed }) => [
-                  s.shutterOuter,
-                  pressed && { transform: [{ scale: 0.94 }] },
-                  (busy || taking) && { opacity: 0.5 },
-                ]}
-              >
-                <View style={s.shutterInner}>
-                  <Camera size={26} color={c.white} strokeWidth={1.8} />
-                </View>
-              </Pressable>
-              <IconButton
-                label="Add carbs manually"
-                icon={NotebookPen}
-                onPress={manual}
-                style={s.controlButton}
-              />
-            </View>
-            <View style={s.controlLabels}>
-              <Type kind="small">Import photo</Type>
-              <Type style={{ fontSize: 12, fontFamily: f.bold }}>Snap a meal</Type>
-              <Type kind="small">Add manually</Type>
+              <View style={s.cameraControls}>
+                <IconButton
+                  label="Import a food photo"
+                  icon={Images}
+                  onPress={() => void pick()}
+                  disabled={busy || taking}
+                  style={s.controlButton}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Snap a meal"
+                  accessibilityState={{ disabled: busy || taking || (!!live && !ready) }}
+                  disabled={busy || taking || (!!live && !ready)}
+                  onPress={() => void snap()}
+                  style={({ pressed }) => [
+                    s.shutterOuter,
+                    pressed && { transform: [{ scale: 0.94 }] },
+                    (busy || taking) && { opacity: 0.5 },
+                  ]}
+                >
+                  <View style={s.shutterInner}>
+                    <Camera size={26} color={c.white} strokeWidth={1.8} />
+                  </View>
+                </Pressable>
+                <IconButton
+                  label="Add carbs manually"
+                  icon={NotebookPen}
+                  onPress={manual}
+                  style={s.controlButton}
+                />
+              </View>
             </View>
           </View>
           <Type kind="small" style={{ textAlign: 'center', marginTop: 10, paddingHorizontal: 8 }}>
             {analysisUrl
-              ? 'Your scan fills in calories, carbs & portions. Edit any detail, then save.'
-              : 'Snap or import, then review your nutrition. Connect photo estimates to fill it in automatically.'}
+              ? 'AI estimates calories & carbs. Review, then save.'
+              : 'AI estimates aren’t connected yet. Your photo can still be saved.'}
           </Type>
           <View style={s.sampleLink}>
             <UtensilsCrossed size={16} color={c.purple} />
@@ -329,59 +283,6 @@ export default function SnapScreen() {
               </Type>
               <TextLink label="Your rhythm" onPress={() => router.navigate('/rhythm')} />
             </View>
-          </View>
-          <View style={s.tipCard}>
-            <View style={{ flex: 1 }}>
-              <Type style={{ fontFamily: f.displayBold, fontSize: 20, lineHeight: 26 }}>
-                {'Small snaps.\nBig peace of mind.'}
-              </Type>
-              <Type kind="small" style={{ marginTop: 9, color: '#736B87' }}>
-                Life’s for living, not counting every crumb.
-              </Type>
-            </View>
-            <View style={{ transform: [{ rotate: '9deg' }], marginRight: -6 }}>
-              <Mascot size={92} />
-            </View>
-          </View>
-          <View style={s.howCard}>
-            <Type style={{ fontFamily: f.bold, fontSize: 13, marginBottom: 14 }}>
-              A little snap goes a long way
-            </Type>
-            {[
-              { icon: Camera, title: 'Snap your food', text: 'Or pick a photo you already love.' },
-              {
-                icon: ScanLine,
-                title: 'Scan, then make it yours',
-                text: 'Review calories, carbs and portions.',
-              },
-              {
-                icon: Check,
-                title: 'Save it. Get on with your day.',
-                text: 'Your memories are a tap away.',
-              },
-            ].map((step, index) => (
-              <View
-                key={step.title}
-                style={{
-                  flexDirection: 'row',
-                  gap: 11,
-                  marginBottom: index === 2 ? 0 : 14,
-                  alignItems: 'center',
-                }}
-              >
-                <View style={s.stepIcon}>
-                  <step.icon size={15} color={c.purple} strokeWidth={1.8} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Type style={{ fontFamily: f.medium, fontSize: 12, lineHeight: 18 }}>
-                    {step.title}
-                  </Type>
-                  <Type kind="small" style={{ fontSize: 10, lineHeight: 16 }}>
-                    {step.text}
-                  </Type>
-                </View>
-              </View>
-            ))}
           </View>
         </View>
       </View>
@@ -454,22 +355,19 @@ export default function SnapScreen() {
   );
 }
 const s = StyleSheet.create({
-  dayBadge: {
+  greetingRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 7,
-    borderWidth: 1,
-    borderColor: c.line,
-    borderRadius: 25,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
-    backgroundColor: c.white,
+    gap: 12,
+    marginBottom: 18,
   },
+  greeting: { fontFamily: f.displayBold, fontSize: 23, lineHeight: 30, flexShrink: 1 },
   greenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#AEC477' },
   cameraCard: {
     backgroundColor: c.white,
     borderRadius: 26,
-    padding: 9,
+    padding: 6,
     borderWidth: 1,
     borderColor: c.line,
   },
@@ -484,49 +382,40 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
   },
   previewBadge: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  frame: { position: 'absolute', top: 73, bottom: 87, left: 57, right: 57 },
+  frame: { position: 'absolute', top: 73, bottom: 155, left: 57, right: 57 },
   corner: { position: 'absolute', width: 26, height: 26, borderColor: 'rgba(255,255,255,0.85)' },
-  sticker: {
-    position: 'absolute',
-    right: 31,
-    top: 88,
-    backgroundColor: '#FBFAF3',
-    paddingVertical: 12,
-    paddingHorizontal: 17,
-    borderRadius: 18,
-    transform: [{ rotate: '7deg' }],
-    boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
-  },
-  previewBottom: { position: 'absolute', bottom: 22, left: 24 },
+  previewBottom: { position: 'absolute', bottom: 120, left: 20, right: 20 },
   cameraControls: {
+    position: 'absolute',
+    bottom: 18,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingTop: 14,
     paddingHorizontal: 17,
   },
-  controlButton: { backgroundColor: '#F4F1F8', width: 50, height: 50, borderRadius: 17 },
+  controlButton: {
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    width: 50,
+    height: 50,
+    borderRadius: 17,
+  },
   shutterOuter: {
-    width: 78,
-    height: 78,
+    width: 86,
+    height: 86,
     padding: 5,
-    borderRadius: 39,
+    borderRadius: 43,
     borderWidth: 1.5,
-    borderColor: c.purple,
+    borderColor: c.white,
   },
   shutterInner: {
     flex: 1,
     backgroundColor: c.purple,
-    borderRadius: 34,
+    borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  controlLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingBottom: 13,
-    paddingTop: 6,
-    paddingHorizontal: 6,
   },
   sampleLink: {
     flexDirection: 'row',
@@ -557,28 +446,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  tipCard: {
-    backgroundColor: '#EBE4F7',
-    borderRadius: 21,
-    padding: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  howCard: {
-    borderWidth: 1,
-    borderColor: c.line,
-    borderRadius: 21,
-    padding: 20,
-    backgroundColor: '#FDFCFA',
-  },
-  stepIcon: {
-    width: 31,
-    height: 31,
-    borderRadius: 11,
-    backgroundColor: '#EEE8F7',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   addMemory: {
     flex: 1,

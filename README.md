@@ -34,19 +34,54 @@ Use Node 22.13 or newer (Node 24 LTS recommended). Camera support requires a pho
 
 Sample memories are explicitly labeled and **excluded from all real daily and weekly totals**. The app starts with an empty real journal.
 
-## Connect real photo estimates (optional)
+## Connect AI with OpenRouter and Infisical
 
-Photo recognition needs a service and a provider key. Without them, the app supports photos, manual entry, and nutrition-label values; it does **not** pretend to analyze your images.
+The photo service supports OpenRouter and direct Gemini. With either provider, capturing or importing a photo automatically estimates food names, portions, calories and total carbs. Values remain editable; check them before saving. Cancel or retry a scan, and reopen saved memories without rescanning.
 
-1. Copy `.env.example` to `.env` in this folder.
-2. Set `GEMINI_API_KEY` to a key from [Google AI Studio](https://aistudio.google.com/apikey). This key is server-only: **never** give it an `EXPO_PUBLIC_` prefix.
-3. Set `EXPO_PUBLIC_ANALYSIS_URL` to your computer's LAN address, for example `http://192.168.1.20:3001`, when testing on a phone. `localhost` works for a browser on the same computer.
-4. In another terminal in this folder, run `npm run server`.
-5. Restart Expo after changing `.env`.
+### Recommended: Infisical secrets
 
-When photo estimates are configured, capturing or importing a photo **automatically starts a scan** through the local service and Google Gemini. The camera and home screen explain this before capture or import. The scan fills in food names, portions, total carbs and calories; every value remains editable. Confirm that you checked the nutrition estimates before saving. Cancel to enter values manually, or use **Retry scan** after a failure. Reopening a saved memory preserves your edits without starting a new scan; **Scan again** is available when you want a fresh estimate.
+The Infisical CLI is installed on this computer. For other machines, follow its [installation guide](https://infisical.com/docs/cli/overview). In this project folder:
 
-The included server uses the [Gemini Interactions API](https://ai.google.dev/api/interactions-api), structured output, and the configurable `GEMINI_MODEL` (default `gemini-3.8-flash`, documented by [Google](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash)). It validates input images and returned values, limits request size and rate, times out requests, and does not log photos or keys. Interaction storage is disabled with `store: false`; Google's provider data policies still apply. Missing credentials, unrecognizable food, and service errors produce a clear manual-entry fallback.
+```sh
+infisical login
+infisical init
+```
+
+Select your Infisical project. This creates a `.infisical.json` project link containing no secrets. Alternatively, copy `.infisical.json.example` to `.infisical.json` and replace its project ID after logging in.
+
+Add these values in your Infisical project's **dev** environment at **/**:
+
+| Name                 | Value                                                          |
+| -------------------- | -------------------------------------------------------------- |
+| `AI_PROVIDER`        | `openrouter`                                                   |
+| `OPENROUTER_API_KEY` | Your [OpenRouter API key](https://openrouter.ai/settings/keys) |
+| `OPENROUTER_MODEL`   | `google/gemini-2.5-flash` (optional default)                   |
+
+The default model supports [images and structured output](https://openrouter.ai/google/gemini-2.5-flash). You can select another OpenRouter model that supports both features. The service requires schema support from the selected endpoint and requests providers that disallow data collection. Provider availability and OpenRouter account policies still apply.
+
+Start everything with:
+
+```sh
+npm run start:infisical
+# Browser preview:
+npm run start:infisical -- --web
+# Or start just the photo service:
+npm run server:infisical
+```
+
+Infisical injects secrets into **only the server process**, not Expo. No secrets are exported to a file, logged by the service, or given an `EXPO_PUBLIC_` prefix. Expo receives the public service URL; the launcher strips provider keys and Infisical credentials and disables Expo's automatic dotenv loading. Do not wrap the entire Expo command in `infisical run`.
+
+To change scope, use `INFISICAL_ENV` and `INFISICAL_SECRET_PATH` in the local `.env` (these values are not secrets). Set `INFISICAL_API_URL` for an EU Cloud or self-hosted instance and log in to that same domain. For a machine identity, supply `INFISICAL_TOKEN` through your host's secret store and set `INFISICAL_PROJECT_ID`; the CLI reads the token from the server environment. Restart after changing secrets. See the [Infisical CLI guide](https://infisical.com/docs/cli/overview).
+
+### Plain local setup
+
+Copy `.env.example` to `.env`, set `OPENROUTER_API_KEY`, and run `npm start` or `npm run web`. Direct Gemini remains available by setting `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and optionally `GEMINI_MODEL` (default `gemini-3.8-flash`). Keep all provider keys server-only.
+
+The launcher starts Expo and the service together and automatically uses your computer's Wi-Fi address for phone requests. Keep your phone and computer on the same Wi-Fi. With multiple network adapters, override `EXPO_PUBLIC_ANALYSIS_URL=http://YOUR_WIFI_IP:3001`. Remote photo services can also use this variable; Expo tunnels forward Expo only, so remote testing needs an accessible analysis service.
+
+Missing keys, exhausted credits, unrecognizable food, and service errors show a clear retry/manual fallback. A real provider scan still requires your Infisical project, login, and OpenRouter key. Tests use mocked responses; no credentials or provider credits are used by the test suites.
+
+The service uses the [OpenRouter Chat Completions API](https://openrouter.ai/docs/guides/overview/multimodal/image-understanding) or the [Gemini Interactions API](https://ai.google.dev/api/interactions-api). It validates input and nutrition results, limits request size and rate, and times out requests. Gemini interaction storage is disabled; OpenRouter provider routing disallows data collection. These settings are not a guarantee of zero retention across every service.
 
 This is a **local development server** bound to your LAN for phone testing. Before public hosting, add authentication, HTTPS, persistent/distributed rate limiting, monitoring, and a reviewed privacy policy. CORS is configured for local browser preview; edit `ALLOWED_ORIGINS` if you use a different browser origin. Native requests do not use browser CORS. Hosting, cloud accounts, and provider billing are not set up.
 
@@ -75,9 +110,9 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ui
 
 The browser tests cover phone and desktop layouts, sample animation, manual calculations, import, persistence after reload, edit/delete/discard, search, and preferences. Physical camera capture and native haptics still need a real-device test in Expo Go.
 
-Five additional mocked AI browser tests check automatic import and camera scans, editable calorie totals and persistence, review before saving, cancellation, retries, and incomplete-result fallback. To run them, start a second Expo preview with `EXPO_PUBLIC_ANALYSIS_URL=http://localhost:3001 npm run web -- --port 8082`, then run `PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ai`. These tests intercept requests; they don't call a provider.
+Five additional mocked AI browser tests check automatic import and camera scans, editable calorie totals and persistence, review before saving, cancellation, retries, and incomplete-result fallback. To run them, start a second Expo preview with `EXPO_PUBLIC_ANALYSIS_URL=http://localhost:3001 npx expo start --web --port 8082`, then run `PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ai`. These tests intercept requests; they don't call a provider.
 
-The calculation/server suite has 10 tests, the phone/desktop interaction suite has 8 tests, and the mocked AI suite has 5 tests. Browser camera coverage uses a simulated camera feed. Actual provider accuracy and physical-device camera/haptics have not been verified.
+The calculation/server/provider and secret-isolation suite has 16 tests, the phone/desktop interaction suite has 8 tests, and the mocked AI suite has 5 tests. Browser camera coverage uses a simulated camera feed. Actual provider accuracy and physical-device camera/haptics have not been verified.
 
 The SDK 57 dependency tree currently reports npm audit advisories inherited through Expo/React Native and their tooling. This is a local development app; dependency remediation should be reviewed before release. Avoid `npm audit fix --force`, which suggests incompatible SDK downgrades. The dependency lockfile is included.
 
@@ -87,7 +122,7 @@ The SDK 57 dependency tree currently reports npm audit advisories inherited thro
 - `src/components/`: shared UI, mascot, scanner, and meal review
 - `src/state/`: serialized local journal persistence
 - `src/lib/`: domain types, calculations, photo storage, sample data, and analysis client
-- `server/`: optional Node photo-analysis proxy
+- `server/`: Node photo-analysis proxy for OpenRouter or Gemini
 - `tests/`: calculation, server, and browser tests
 
 Design: warm cream, soft lilac, lime accents, DM Sans, Space Grotesk, and a hand-drawn SVG bean mascot. Animations respect reduced-motion settings; haptics are optional. Food preview photos are bundled locally from Unsplash ([salad](https://images.unsplash.com/photo-1546069901-ba9599a7e63c), [breakfast](https://images.unsplash.com/photo-1525351484163-7529414344d8), [berries](https://images.unsplash.com/photo-1464965911861-746a04b4bca6)). Sample food values are illustrative and don't claim to describe the stock photos accurately.

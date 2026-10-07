@@ -119,7 +119,7 @@ export default function CaptureScreen() {
             />
             <Type kind="small" style={{ marginTop: 16, color: '#AAA1BA' }}>
               {analysisUrl
-                ? 'Snaps automatically scan with Google Gemini. Review and edit the results.'
+                ? 'Snaps automatically scan with the AI service. Review and edit the results.'
                 : 'Your photos stay on this device. Photo estimates aren’t connected yet.'}
             </Type>
           </View>

@@ -3,7 +3,9 @@ test('manual fractional portions persist, update totals, and can be deleted', as
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByText('Good food. Less guesswork.')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Add carbs manually', exact: true }).click();
   await page.getByLabel('Memory name', { exact: true }).fill('Lunch with rice');
   await page.getByLabel('Food 1 name', { exact: true }).fill('Cooked rice');
@@ -100,5 +102,5 @@ test('preferences persist and all main screens fit the viewport', async ({ page 
     '150',
   );
   await page.getByRole('tab', { name: 'Snap a meal', exact: true }).click();
-  await expect(page.getByText(/ALEX ✦/)).toBeVisible();
+  await expect(page.getByText(/Good (morning|afternoon|evening), Alex/)).toBeVisible();
 });

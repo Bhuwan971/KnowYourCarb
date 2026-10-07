@@ -50,6 +50,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
   const [saving, setSaving] = useState(false);
   const [checked, setChecked] = useState(existing || initial.source !== 'ai');
   const [error, setError] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const mounted = useRef(true);
@@ -57,7 +58,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
   const split = useWindowDimensions().width >= 800;
   const analyze = useCallback(async (photo: string) => {
     if (abort.current) return;
-    setError(null);
+    setScanError(null);
     setScanning(true);
     const controller = new AbortController();
     abort.current = controller;
@@ -74,7 +75,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
         abort.current === controller &&
         controller.signal.reason !== 'cancelled'
       )
-        setError(
+        setScanError(
           controller.signal.aborted
             ? 'That estimate took too long. Try again, or enter the nutrition yourself.'
             : e instanceof Error
@@ -277,15 +278,22 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                       <ScanLine size={22} color={c.purple} />
                       <View style={{ flex: 1, gap: 8 }}>
                         <Type style={{ fontSize: 13, fontFamily: f.bold }}>
-                          {analysisUrl
-                            ? meal.source === 'ai'
-                              ? 'Estimated from your photo'
-                              : 'Try another scan'
-                            : 'Your photo is ready to keep'}
+                          {scanError
+                            ? 'AI scan couldn’t finish'
+                            : analysisUrl
+                              ? meal.source === 'ai'
+                                ? 'Estimated from your photo'
+                                : 'Try another scan'
+                              : 'Your photo is ready to keep'}
                         </Type>
+                        {scanError && (
+                          <Type accessibilityRole="alert" style={{ color: c.error, fontSize: 13 }}>
+                            {scanError}
+                          </Type>
+                        )}
                         <Type kind="small">
                           {analysisUrl
-                            ? 'Photo scans use Google Gemini. You can edit every value; portions and hidden ingredients may affect the estimate.'
+                            ? 'Photo scans use the AI service. You can edit every value; portions and hidden ingredients may affect the estimate.'
                             : 'Automatic photo estimates aren’t connected yet. Add nutrition from a label below, or connect the photo service in the setup guide.'}
                         </Type>
                         {analysisUrl && (

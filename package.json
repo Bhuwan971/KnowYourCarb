@@ -39,17 +39,19 @@
     "eslint-config-expo": "~57.0.2"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "start": "node --env-file-if-exists=.env scripts/start-dev.mjs",
+    "android": "npm start -- --android",
+    "ios": "npm start -- --ios",
+    "web": "npm start -- --web",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "test": "node --test tests/*.test.mjs",
     "test:ui": "playwright test",
     "server": "node --env-file-if-exists=.env server/index.mjs",
     "format": "prettier --write src server tests scripts *.ts *.js *.json README.md",
-    "test:ai": "playwright test -c playwright.ai.config.ts"
+    "test:ai": "playwright test -c playwright.ai.config.ts",
+    "start:infisical": "node --env-file-if-exists=.env scripts/start-dev.mjs --infisical",
+    "server:infisical": "node --env-file-if-exists=.env scripts/start-dev.mjs --infisical --server-only"
   },
   "private": true
 }

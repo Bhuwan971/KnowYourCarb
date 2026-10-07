@@ -1,11 +1,13 @@
 export const responseSchema = {
   type: 'object',
+  additionalProperties: false,
   properties: {
     title: { type: 'string' },
     items: {
       type: 'array',
       items: {
         type: 'object',
+        additionalProperties: false,
         properties: {
           name: { type: 'string' },
           portion: { type: 'string' },
@@ -108,7 +110,8 @@ export function validateImage(body) {
     });
   return body.image;
 }
-export async function estimate(image, { apiKey, model, fetchImpl = fetch }) {
+export async function estimate(image, { provider = 'gemini', apiKey, model, fetchImpl = fetch }) {
+  if (provider === 'openrouter') return estimateOpenRouter(image, { apiKey, model, fetchImpl });
   const response = await fetchImpl(
     'https://generativelanguage.googleapis.com/v1beta/interactions',
     {
@@ -152,6 +155,9 @@ export async function estimate(image, { apiKey, model, fetchImpl = fetch }) {
       new Error('The photo service returned an incomplete estimate. Please try again.'),
       { status: 502 },
     );
+  return parseEstimate(text);
+}
+function parseEstimate(text) {
   let parsed;
   try {
     parsed = JSON.parse(text);
@@ -161,4 +167,61 @@ export async function estimate(image, { apiKey, model, fetchImpl = fetch }) {
     });
   }
   return validateAnalysis(parsed);
+}
+
+async function estimateOpenRouter(image, { apiKey, model, fetchImpl }) {
+  const response = await fetchImpl('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(40_000),
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: instruction },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Estimate total carbohydrate and calories for the visible portions. Explicitly describe each portion and uncertainty.',
+            },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } },
+          ],
+        },
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: 'meal_nutrition', strict: true, schema: responseSchema },
+      },
+      provider: { require_parameters: true, data_collection: 'deny' },
+      max_tokens: 3000,
+    }),
+  });
+  if (!response.ok) {
+    const errors = {
+      401: 'The AI service key wasn’t accepted. Check the OpenRouter key in your server secrets.',
+      402: 'The AI service needs OpenRouter credits before it can scan photos.',
+      429: 'Photo estimates are busy. Please try again in a moment.',
+    };
+    throw Object.assign(
+      new Error(
+        errors[response.status] ||
+          'The photo service couldn’t complete this estimate. Please try again or review manually.',
+      ),
+      { status: response.status === 429 ? 429 : 502 },
+    );
+  }
+  const result = await response.json();
+  const choice = result.choices?.[0];
+  if (
+    result.error ||
+    choice?.finish_reason !== 'stop' ||
+    typeof choice.message?.content !== 'string' ||
+    !choice.message.content.trim()
+  )
+    throw Object.assign(
+      new Error('The photo service returned an incomplete estimate. Please try again.'),
+      { status: 502 },
+    );
+  return parseEstimate(choice.message.content);
 }
