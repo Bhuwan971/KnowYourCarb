@@ -1,3 +1,5 @@
+import { createServer } from 'node:net';
+
 export function infisicalArgs(env = process.env) {
   return [
     'run',
@@ -20,4 +22,25 @@ export function expoEnvironment(env, analysisUrl) {
     if (/^(OPENROUTER_|GEMINI_|INFISICAL_)/.test(key) || key === 'AI_PROVIDER') delete result[key];
   }
   return result;
+}
+
+// Check before starting either child, so a conflict cannot leave a partial dev session.
+export async function assertPortAvailable(port, label) {
+  if (!Number.isInteger(port) || port < 1 || port > 65535)
+    throw new Error(`${label} port must be a number between 1 and 65535.`);
+  await new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.once('error', (error) =>
+      reject(
+        new Error(
+          error.code === 'EADDRINUSE'
+            ? `${label} port ${port} is already in use. Stop the previous dev server, or choose ${label === 'Photo service' ? 'another service port with PORT=3002 npm run start:infisical' : 'another Expo port with npm run start:infisical -- --port 8083'}.`
+            : `${label} cannot use port ${port} (${error.code}).`,
+        ),
+      ),
+    );
+    probe.listen({ port, host: '0.0.0.0', exclusive: true }, () =>
+      probe.close((error) => (error ? reject(error) : resolve())),
+    );
+  });
 }

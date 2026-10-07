@@ -130,6 +130,14 @@ export function createApp({
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const server = createApp();
   const port = Number(process.env.PORT || 3001);
+  server.once('error', (error) => {
+    console.error(
+      error.code === 'EADDRINUSE'
+        ? `Photo service port ${port} is already in use. Stop the previous server, or set PORT to a free port.`
+        : `The photo service could not listen on port ${port} (${error.code}).`,
+    );
+    process.exitCode = 1;
+  });
   server.listen(port, '0.0.0.0', () =>
     console.log(
       `Carbsy local photo service: http://localhost:${port}\nPhoto estimates: ${analysisConfig().apiKey ? `configured (${analysisConfig().provider})` : 'not configured (manual journal works)'}`,

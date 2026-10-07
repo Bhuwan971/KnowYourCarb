@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { networkInterfaces } from 'node:os';
-import { infisicalArgs, expoEnvironment } from './dev-config.mjs';
+import { infisicalArgs, expoEnvironment, assertPortAvailable } from './dev-config.mjs';
 
 // Start the photo service and Expo together, injecting Infisical secrets into the server only.
 const port = Number(process.env.PORT || 3001);
@@ -26,6 +26,13 @@ const origins = [
   ]),
 ].join(',');
 const analysisUrl = process.env.EXPO_PUBLIC_ANALYSIS_URL || `http://${host}:${port}`;
+try {
+  await assertPortAvailable(port, 'Photo service');
+  if (!serverOnly) await assertPortAvailable(Number(expoPort), 'Expo');
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 const server = spawn(
   useInfisical ? 'infisical' : process.execPath,
   useInfisical ? infisicalArgs() : ['server/index.mjs'],
@@ -59,9 +66,9 @@ server.once('error', (error) => {
   stop(1);
 });
 server.once('exit', (code) => {
-  if (!stopping && useInfisical && code)
+  if (!stopping && code)
     console.error(
-      'Infisical could not start the photo service. Check login, project, environment and secret path.',
+      'The photo service stopped with an error. Check the message above for the cause.',
     );
   stop(code || 0);
 });
