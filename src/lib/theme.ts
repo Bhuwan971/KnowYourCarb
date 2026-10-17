@@ -1,3 +1,5 @@
+import { cubicBezier } from 'react-native-reanimated';
+
 export const colors = {
   bg: '#FAF9F6',
   ink: '#282632',
@@ -24,4 +26,5 @@ export const fonts = {
   displayBold: 'SpaceGrotesk_700Bold',
 };
 // Strong ease-out for UI; never ease-in on something the person is watching.
-export const easeOut = 'cubic-bezier(0.23, 1, 0.32, 1)';
+// Reanimated CSS transitions only accept predefined strings or a cubicBezier() object, not a CSS string.
+export const easeOut = cubicBezier(0.23, 1, 0.32, 1);
