@@ -7,3 +7,4 @@ dist
 scaffold
 test-results
 package-lock.json
+server/data/

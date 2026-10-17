@@ -1,12 +1,5 @@
-import React, { useMemo } from 'react';
-import {
-  PanResponder,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { usePathname, router, Href } from 'expo-router';
 import {
   Camera,
@@ -38,17 +31,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
     tap();
     router.navigate(href);
   };
-  const gestures = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) => !wide && Math.abs(g.dx) > 65 && Math.abs(g.dy) < 25,
-        onPanResponderRelease: (_, g) => {
-          if (pathname === '/' && g.dx < -75) router.navigate('/memories');
-          if (pathname === '/memories' && g.dx > 75) router.navigate('/');
-        },
-      }),
-    [wide, pathname],
-  );
   const nav = (mobile: boolean) =>
     tabs.map(({ href, label, icon: Icon }) => {
       const active = pathname === href;
@@ -130,7 +112,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </View>
         </View>
       )}
-      <View style={{ flex: 1 }} {...gestures.panHandlers}>
+      <View style={{ flex: 1 }}>
         <View style={[s.topbar, !wide && { paddingHorizontal: 22, height: 65 }]}>
           {wide ? (
             <Type kind="small" style={{ letterSpacing: 0.8 }}>

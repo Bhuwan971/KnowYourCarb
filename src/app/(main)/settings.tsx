@@ -41,10 +41,19 @@ export default function SettingsScreen() {
     try {
       const response = await fetch(`${analysisUrl}/health`, { signal: controller.signal });
       const result = await response.json();
+      const foods = Number(result.foods) || 0;
       setStatus(
-        result.configured
-          ? 'Photo estimates are connected. New snaps and imports scan automatically.'
-          : 'The service is running, but photo estimates still need to be configured.',
+        [
+          result.configured
+            ? 'Photo estimates are connected. New snaps and imports scan automatically.'
+            : 'The service is running, but photo estimates still need an AI key.',
+          foods
+            ? `USDA database: ${foods.toLocaleString()} foods ready for matching and search.`
+            : 'The USDA database file is missing on the service.',
+          result.branded
+            ? 'USDA Branded Foods is connected for barcodes.'
+            : 'Barcodes use Open Food Facts. Add USDA_API_KEY for USDA Branded Foods too.',
+        ].join(' '),
       );
     } catch {
       setStatus('Couldn’t reach photo estimates. Your local journal still works.');
@@ -186,7 +195,7 @@ export default function SettingsScreen() {
           </View>
           <Type style={{ color: c.muted, fontSize: 14 }}>
             {analysisUrl
-              ? 'New snaps and imported photos are sent automatically to your analysis service and Google Gemini to estimate calories, carbs and portions. Review or edit the details before saving. Photos can’t reveal exact portions, recipes, or hidden ingredients.'
+              ? 'New snaps and imported photos go to your Carbsy service and its AI provider, which identifies the foods and portions. Each food is then matched to USDA FoodData Central (FNDDS and SR Legacy) so nutrition comes from measured composition data, not the AI’s memory. Barcodes are looked up in USDA Branded Foods and Open Food Facts. Photos still can’t reveal exact portions or hidden ingredients, so quick checks ask about what matters most.'
               : 'You can save photos and enter carbs and calories from a nutrition label right now. Connect photo estimates to fill in new snaps automatically.'}
           </Type>
           {analysisUrl && (

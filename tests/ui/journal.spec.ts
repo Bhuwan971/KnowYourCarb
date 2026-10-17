@@ -12,15 +12,18 @@ test('manual fractional portions persist, update totals, and can be deleted', as
   await page.getByLabel('Food 1 portion', { exact: true }).fill('100 g');
   await expect(page.getByRole('button', { name: 'Save memory', exact: true })).toBeDisabled();
   await page.getByLabel('Food 1 carbs (g / portion)', { exact: true }).fill('28.2');
-  await page.getByLabel('Food 1 portions eaten', { exact: true }).fill('1.5');
+  // Portions eaten step by a quarter: 1 → 1.5.
+  await page.getByRole('button', { name: 'More of Cooked rice', exact: true }).click();
+  await page.getByRole('button', { name: 'More of Cooked rice', exact: true }).click();
   await page.getByRole('button', { name: 'Save memory', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Open Lunch with rice', exact: true }),
   ).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Open Lunch with rice', exact: true }).click();
-  await expect(page.getByLabel('Food 1 portions eaten', { exact: true })).toHaveValue('1.5');
-  await page.getByLabel('Food 1 portions eaten', { exact: true }).fill('2');
+  await expect(page.getByText('100 g · ×1½', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'More of Cooked rice', exact: true }).click();
+  await page.getByRole('button', { name: 'More of Cooked rice', exact: true }).click();
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await page.getByRole('tab', { name: 'Snap a meal', exact: true }).click();
   await expect(page.getByText('56.4', { exact: true })).toBeVisible();

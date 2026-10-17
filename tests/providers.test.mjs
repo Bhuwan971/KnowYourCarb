@@ -19,12 +19,16 @@ test('OpenRouter sends a vision request with a strict schema and validates calor
     provider: 'openrouter',
     apiKey: 'test-server-key',
     model: 'vision-model',
+    searchFoods: () => [],
     fetchImpl: async (url, options) => {
       sent = { url, ...options, body: JSON.parse(options.body) };
       return completion(JSON.stringify(meal));
     },
   });
-  assert.deepEqual(result, meal);
+  assert.equal(result.title, meal.title);
+  assert.equal(result.items[0].carbs, 45);
+  assert.equal(result.items[0].calories, 205);
+  assert.equal(result.items[0].nutritionBasis, 'estimate');
   assert.equal(sent.url, 'https://openrouter.ai/api/v1/chat/completions');
   assert.equal(sent.headers.Authorization, 'Bearer test-server-key');
   assert.equal(sent.body.model, 'vision-model');
@@ -74,6 +78,7 @@ test('the default deadline allows a slow provider response to finish after a min
       provider,
       apiKey: 'test',
       model: 'vision-model',
+      searchFoods: () => [],
       fetchImpl: async (_, { signal }) => {
         upstreamSignal = signal;
         await pending;
@@ -90,7 +95,7 @@ test('the default deadline allows a slow provider response to finish after a min
     t.mock.timers.tick(60_000);
     assert.equal(upstreamSignal.aborted, false);
     release();
-    assert.deepEqual(await run, meal);
+    assert.equal((await run).items[0].carbs, 45);
   }
 });
 

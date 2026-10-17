@@ -1,9 +1,11 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { ArrowUpRight, Clock3 } from 'lucide-react-native';
-import { Meal, sourceLabel, totalCarbs, totalCalories } from '../lib/model';
+import { Meal, mealConfidence, mealSourceLabel, totalCarbs, totalCalories } from '../lib/model';
 import { colors as c, fonts as f } from '../lib/theme';
 import { FoodPhoto, Type, Chip } from './ui';
+import { PressableScale } from './PressableScale';
+import { confidenceMeta } from './kit';
 export function MemoryCard({
   meal,
   onPress,
@@ -14,15 +16,15 @@ export function MemoryCard({
   compact?: boolean;
 }) {
   const calories = totalCalories(meal.items);
+  const confidence = meal.source === 'sample' ? null : mealConfidence(meal.items);
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`Open ${meal.title}`}
       onPress={onPress}
-      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-        s.card,
-        (pressed || hovered) && { transform: [{ translateY: -3 }], borderColor: '#D3C6F2' },
-      ]}
+      scaleTo={0.98}
+      style={s.card}
+      hoverStyle={{ borderColor: '#D3C6F2' }}
     >
       <View style={[s.photo, compact && { height: 148 }]}>
         <FoodPhoto uri={meal.photo} style={{ width: '100%', height: '100%' }} />
@@ -36,7 +38,20 @@ export function MemoryCard({
             {totalCarbs(meal.items)}
             <Type style={{ fontSize: 13 }}>g</Type>
           </Type>
-          <Type style={{ fontSize: 9, lineHeight: 13, color: c.muted }}>total carbs</Type>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            {confidence && (
+              <View
+                accessibilityLabel={confidenceMeta[confidence].label}
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: confidenceMeta[confidence].ink,
+                }}
+              />
+            )}
+            <Type style={{ fontSize: 9, lineHeight: 13, color: c.muted }}>total carbs</Type>
+          </View>
           {calories !== null && (
             <Type style={{ fontSize: 10, lineHeight: 16, color: c.purple }}>{calories} kcal</Type>
           )}
@@ -65,11 +80,11 @@ export function MemoryCard({
                   hour: 'numeric',
                   minute: '2-digit',
                 })}{' '}
-            · {sourceLabel[meal.source]}
+            · {mealSourceLabel(meal)}
           </Type>
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 const s = StyleSheet.create({

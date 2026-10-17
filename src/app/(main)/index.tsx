@@ -3,17 +3,20 @@ import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle } from 'react-native-svg';
 import {
   ArrowRight,
+  Barcode,
   Camera,
   Images,
+  MessageSquareText,
   NotebookPen,
+  Repeat2,
   UtensilsCrossed,
-  MoveLeft,
   Plus,
 } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
-import { dailyTotal, localDay, newMeal } from '../../lib/model';
+import { dailyTotal, localDay, Meal, newMeal, totalCarbs, uid } from '../../lib/model';
 import { photos, sampleMeal } from '../../lib/samples';
 import { colors as c, fonts as f } from '../../lib/theme';
 import { analysisUrl } from '../../lib/analysis';
@@ -22,6 +25,50 @@ import { TextLink } from '../../components/Shell';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MemoryCard } from '../../components/MemoryCard';
 import { usePhotoActions } from '../../components/usePhotoActions';
+import { PressableScale } from '../../components/PressableScale';
+import { CountUp } from '../../components/kit';
+
+// A soft progress ring for a personal reference; past 100% it simply stays full.
+function Ring({ progress, size = 92 }: { progress: number; size?: number }) {
+  const stroke = 9;
+  const r = (size - stroke) / 2;
+  const length = 2 * Math.PI * r;
+  return (
+    <Svg width={size} height={size} accessibilityElementsHidden>
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        stroke={c.lavender}
+        strokeWidth={stroke}
+        fill="none"
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        stroke={c.purple}
+        strokeWidth={stroke}
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray={`${length} ${length}`}
+        strokeDashoffset={length * (1 - Math.min(1, progress))}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+    </Svg>
+  );
+}
+
+// Meals you eat again and again, most recent first — one tap logs them exactly as before.
+function repeatable(meals: Meal[]) {
+  const seen = new Set<string>();
+  return meals.filter((meal) => {
+    const key = meal.title.trim().toLowerCase();
+    if (meal.source === 'sample' || !key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 export default function SnapScreen() {
   const { width, height } = useWindowDimensions();
@@ -59,6 +106,20 @@ export default function SnapScreen() {
     setDraft(newMeal());
     router.navigate('/review');
   };
+  const again = (meal: Meal) => {
+    tap();
+    const fresh = newMeal(meal.photo);
+    setDraft({
+      ...meal,
+      id: fresh.id,
+      createdAt: fresh.createdAt,
+      mealType: fresh.mealType,
+      reviewed: false,
+      items: meal.items.map((item) => ({ ...item, id: uid() })),
+    });
+    router.navigate('/review');
+  };
+  const repeats = repeatable(meals).slice(0, 3);
   const snap = async () => {
     tap();
     if (!live) {
@@ -215,9 +276,46 @@ export default function SnapScreen() {
               </View>
             </View>
           </View>
+          <View style={s.quick}>
+            {[
+              ...(analysisUrl
+                ? [
+                    {
+                      label: 'Barcode',
+                      icon: Barcode,
+                      onPress: () => {
+                        tap();
+                        router.navigate({ pathname: '/capture', params: { mode: 'barcode' } });
+                      },
+                    },
+                    {
+                      label: 'Describe',
+                      icon: MessageSquareText,
+                      onPress: () => {
+                        tap();
+                        router.navigate('/describe');
+                      },
+                    },
+                  ]
+                : []),
+              { label: 'Type it', icon: NotebookPen, onPress: manual },
+            ].map((action) => (
+              <PressableScale
+                key={action.label}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+                onPress={action.onPress}
+                style={s.quickButton}
+                hoverStyle={{ borderColor: '#D3C5EE' }}
+              >
+                <action.icon size={17} color={c.purple} />
+                <Type style={s.quickText}>{action.label}</Type>
+              </PressableScale>
+            ))}
+          </View>
           <Type kind="small" style={{ textAlign: 'center', marginTop: 10, paddingHorizontal: 8 }}>
             {analysisUrl
-              ? 'AI estimates calories & carbs. Review, then save.'
+              ? 'Photos are matched to USDA FoodData Central. A quick check tightens the estimate.'
               : 'AI estimates aren’t connected yet. Your photo can still be saved.'}
           </Type>
           <View style={s.sampleLink}>
@@ -245,32 +343,27 @@ export default function SnapScreen() {
                 TODAY
               </Chip>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 14 }}>
-              <Type
-                style={{
-                  fontFamily: f.displayBold,
-                  fontSize: 62,
-                  lineHeight: 73,
-                  letterSpacing: -3,
-                }}
-              >
-                {grams}
-              </Type>
-              <Type style={{ fontSize: 22, color: c.muted, fontFamily: f.display }}>g</Type>
-            </View>
-            <Type kind="small">total carbs logged</Type>
-            {settings.goal !== null && (
-              <View style={{ marginTop: 16, gap: 6 }}>
-                <View style={{ height: 7, borderRadius: 7, backgroundColor: c.lavender }}>
-                  <View
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 14 }}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7 }}>
+                  <CountUp
+                    value={grams}
+                    decimals={1}
                     style={{
-                      height: 7,
-                      borderRadius: 7,
-                      backgroundColor: c.purple,
-                      width: `${Math.min(100, (grams / settings.goal) * 100)}%`,
+                      fontFamily: f.displayBold,
+                      fontSize: 62,
+                      lineHeight: 73,
+                      letterSpacing: -3,
                     }}
                   />
+                  <Type style={{ fontSize: 22, color: c.muted, fontFamily: f.display }}>g</Type>
                 </View>
+                <Type kind="small">total carbs logged</Type>
+              </View>
+              {settings.goal !== null && <Ring progress={grams / settings.goal} />}
+            </View>
+            {settings.goal !== null && (
+              <View style={{ marginTop: 10, gap: 6 }}>
                 <Type kind="small">
                   Your reference: {settings.goal} g · {Math.round((grams / settings.goal) * 100)}%
                   logged
@@ -284,10 +377,40 @@ export default function SnapScreen() {
               <TextLink label="Your rhythm" onPress={() => router.navigate('/rhythm')} />
             </View>
           </View>
+          {!!repeats.length && (
+            <View style={s.todayCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Repeat2 size={16} color={c.purple} />
+                <Type style={{ fontFamily: f.bold, fontSize: 15 }}>Having it again?</Type>
+              </View>
+              <Type kind="small" style={{ marginBottom: 8 }}>
+                Log a past meal in one tap, with your own corrections.
+              </Type>
+              {repeats.map((meal) => (
+                <PressableScale
+                  key={meal.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Log ${meal.title} again`}
+                  onPress={() => again(meal)}
+                  scaleTo={0.98}
+                  style={s.repeat}
+                  hoverStyle={{ backgroundColor: c.bg }}
+                >
+                  <Type numberOfLines={1} style={{ flex: 1, fontFamily: f.medium, fontSize: 14 }}>
+                    {meal.title}
+                  </Type>
+                  <Type style={{ fontFamily: f.bold, fontSize: 14, color: c.purple }}>
+                    {totalCarbs(meal.items)} g
+                  </Type>
+                  <Plus size={16} color={c.purple} />
+                </PressableScale>
+              ))}
+            </View>
+          )}
         </View>
       </View>
       <View style={[s.sectionRow, { marginTop: 25, marginBottom: 14 }]}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Type style={{ fontFamily: f.displayBold, fontSize: 22 }}>
             {meals.length ? 'Your little food memories' : 'Every bite has a little story'}
           </Type>
@@ -337,20 +460,6 @@ export default function SnapScreen() {
           </Pressable>
         )}
       </View>
-      {mobile && (
-        <View
-          style={{
-            alignItems: 'center',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            gap: 7,
-            marginTop: 18,
-          }}
-        >
-          <MoveLeft size={14} color={c.muted} />
-          <Type kind="small">Swipe left for your memories</Type>
-        </View>
-      )}
     </>
   );
 }
@@ -424,6 +533,32 @@ const s = StyleSheet.create({
     gap: 7,
     marginTop: 13,
     flexWrap: 'wrap',
+  },
+  quick: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' },
+  quickButton: {
+    flexGrow: 1,
+    flexBasis: 90,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    minHeight: 48,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: c.line,
+    backgroundColor: c.white,
+  },
+  quickText: { fontFamily: f.bold, fontSize: 13, color: c.ink },
+  repeat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 46,
+    paddingHorizontal: 10,
+    borderRadius: 13,
+    borderTopWidth: 1,
+    borderTopColor: c.line,
   },
   sectionRow: {
     flexDirection: 'row',

@@ -52,6 +52,7 @@ function Routes() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
         <Stack.Screen name="(main)" />
         <Stack.Screen name="capture" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="describe" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="review" options={{ animation: 'fade' }} />
         <Stack.Screen name="memory/[id]" options={{ animation: 'slide_from_right' }} />
       </Stack>

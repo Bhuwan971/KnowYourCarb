@@ -135,3 +135,62 @@ test('journals accept absent nutrients but reject malformed or inconsistent supp
     assert.equal(isMeal(meal), false);
   }
 });
+
+test('USDA household picks and identity swaps recompute nutrition from per-100 g data', async () => {
+  const { itemFromFood, withHouseholdPortion, withIdentity, mealConfidence } =
+    await import('../src/lib/model.ts');
+  const food = {
+    id: 1,
+    description: 'Rice, white, cooked',
+    dataset: 'fndds',
+    per100g: { carbs: 28, calories: 129, protein: 2.67 },
+    portions: [{ label: '1 cup, cooked', grams: 163 }],
+  };
+  const rice = itemFromFood(food);
+  assert.equal(rice.carbs, 45.6);
+  assert.equal(rice.portionGrams, 163);
+  const more = withHouseholdPortion(rice, food.portions[0], 1.5);
+  assert.equal(more.carbs, 68.5);
+  assert.equal(more.portionGrams, 244.5);
+  assert.ok(more.carbsRange.min < more.carbs && more.carbsRange.max > more.carbs);
+  assert.equal(mealConfidence([more]), 'high');
+  const cola = {
+    ...rice,
+    name: 'Cola',
+    carbs: 39,
+    alternatives: [
+      { ...rice, name: 'Diet cola', carbs: 1, nutritionPer100g: { carbs: 0.3 }, portionGrams: 163 },
+    ],
+  };
+  const diet = withIdentity(cola, cola.alternatives[0]);
+  assert.equal(diet.name, 'Diet cola');
+  assert.equal(diet.id, cola.id);
+  assert.equal(diet.alternatives[0].name, 'Cola');
+  // Swapping back restores the original.
+  assert.equal(withIdentity(diet, diet.alternatives[0]).carbs, 39);
+});
+
+test('barcode products default to their serving, and repeat foods come from real meals only', async () => {
+  const { itemFromProduct, recentFoods } = await import('../src/lib/model.ts');
+  const item = itemFromProduct({
+    name: 'Granola',
+    brand: 'Oat Co',
+    source: 'Open Food Facts',
+    code: '123456789012',
+    unit: 'g',
+    per100g: { carbs: 64, calories: 450, sugar: 20 },
+    serving: { label: '45 g', grams: 45 },
+    packageSize: null,
+  });
+  assert.equal(item.name, 'Oat Co Granola');
+  assert.equal(item.carbs, 28.8);
+  assert.equal(item.nutritionBasis, 'label');
+  assert.equal(item.confidence, 'high');
+  const meal = { ...newMeal(), title: 'Breakfast', items: [{ ...item, servings: 2 }] };
+  const sample = { ...meal, id: 's', source: 'sample', items: [{ ...item, name: 'Sample' }] };
+  const [repeat] = recentFoods([meal, sample]);
+  assert.equal(repeat.name, 'Oat Co Granola');
+  assert.equal(repeat.servings, 1);
+  assert.notEqual(repeat.id, item.id);
+  assert.equal(recentFoods([meal, sample], 'sample').length, 0);
+});

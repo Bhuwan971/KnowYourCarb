@@ -1,16 +1,19 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { router, useFocusEffect } from 'expo-router';
+import { Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Camera, Images, SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
+import { Barcode, Camera, Images, SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
 import { usePhotoActions } from '../components/usePhotoActions';
 import { Button, IconButton, Type } from '../components/ui';
 import { Mascot } from '../components/Mascot';
 import { useApp } from '../state/AppProvider';
 import { colors as c, fonts as f } from '../lib/theme';
-import { analysisUrl } from '../lib/analysis';
+import { analysisUrl, lookupBarcode } from '../lib/analysis';
+import { itemFromProduct, newMeal } from '../lib/model';
+import { PressableScale } from '../components/PressableScale';
 export default function CaptureScreen() {
   const [permission, request] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
@@ -20,7 +23,49 @@ export default function CaptureScreen() {
   const [ready, setReady] = useState(false);
   const [taking, setTaking] = useState(false);
   const { busy, pick, accept } = usePhotoActions();
-  const { notify, tap } = useApp();
+  const { notify, tap, setDraft, settings } = useApp();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const [mode, setMode] = useState<'photo' | 'barcode'>(
+    params.mode === 'barcode' ? 'barcode' : 'photo',
+  );
+  const [lookingUp, setLookingUp] = useState<string | null>(null);
+  const [typedCode, setTypedCode] = useState('');
+  // Scanners fire many times a second; only the first read of a code counts.
+  const lastCode = useRef<{ code: string; at: number } | null>(null);
+  const lookup = async (code: string) => {
+    if (lookingUp) return;
+    setLookingUp(code);
+    if (settings.haptics && Platform.OS !== 'web') void Haptics.selectionAsync().catch(() => {});
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    try {
+      const product = await lookupBarcode(code, controller.signal);
+      const meal = newMeal();
+      const item = itemFromProduct(product);
+      setDraft({ ...meal, title: item.name, items: [item], source: 'label' });
+      router.replace('/review');
+    } catch (e) {
+      notify(
+        controller.signal.aborted
+          ? 'That lookup took too long. Try again or snap the label.'
+          : e instanceof Error
+            ? e.message
+            : 'Couldn’t look up that barcode.',
+      );
+      setTimeout(() => setLookingUp(null), 1200);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const scanned = ({ data }: BarcodeScanningResult) => {
+    const code = data.replace(/\D/g, '');
+    const now = Date.now();
+    if (!/^\d{8,14}$/.test(code) || lookingUp) return;
+    if (lastCode.current?.code === code && now - lastCode.current.at < 4000) return;
+    lastCode.current = { code, at: now };
+    void lookup(code);
+  };
+  const barcode = mode === 'barcode';
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
@@ -75,19 +120,33 @@ export default function CaptureScreen() {
               style={StyleSheet.absoluteFill}
               facing={facing}
               enableTorch={torch}
+              barcodeScannerSettings={
+                barcode ? { barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'] } : undefined
+              }
+              onBarcodeScanned={barcode && !lookingUp ? scanned : undefined}
               onCameraReady={() => setReady(true)}
               onMountError={() => {
                 setReady(false);
                 notify('The camera is unavailable. Import a photo to keep going.');
               }}
             />
-            <View pointerEvents="none" style={s.frame}>
-              <View style={s.crossH} />
-              <View style={s.crossV} />
+            <View pointerEvents="none" style={barcode ? s.barcodeFrame : s.frame}>
+              {barcode ? (
+                <View style={[s.laser, lookingUp ? { backgroundColor: c.lime } : null]} />
+              ) : (
+                <>
+                  <View style={s.crossH} />
+                  <View style={s.crossV} />
+                </>
+              )}
             </View>
             <View style={s.hint}>
-              <Type style={{ color: c.white, fontSize: 12 }}>
-                Center your plate. Natural light helps.
+              <Type style={{ color: c.white, fontSize: 12, textAlign: 'center' }}>
+                {lookingUp
+                  ? `Looking up ${lookingUp}…`
+                  : barcode
+                    ? 'Line up the barcode on the package.'
+                    : 'Center your plate. Natural light helps.'}
               </Type>
             </View>
           </>
@@ -125,46 +184,104 @@ export default function CaptureScreen() {
           </View>
         )}
       </View>
-      <View style={s.controls}>
-        <IconButton
-          label="Import a food photo"
-          icon={Images}
-          onPress={() => void pick()}
-          disabled={busy || taking}
-          style={s.darkButton}
-          color={c.white}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Take photo"
-          accessibilityState={{ disabled: !ready || busy || taking }}
-          disabled={!ready || busy || taking}
-          onPress={() => void snap()}
-          style={({ pressed }) => [
-            s.shutter,
-            (!ready || busy || taking) && { opacity: 0.4 },
-            pressed && { transform: [{ scale: 0.93 }] },
-          ]}
-        >
-          <View style={s.shutterInside} />
-        </Pressable>
-        <IconButton
-          label="Flip camera"
-          icon={SwitchCamera}
-          onPress={() => {
-            setReady(false);
-            setFacing(facing === 'back' ? 'front' : 'back');
-          }}
-          disabled={!permission?.granted || taking || busy}
-          style={s.darkButton}
-          color={c.white}
-        />
-      </View>
+      {analysisUrl && (
+        <View style={s.modes} accessibilityRole="tablist">
+          {(
+            [
+              ['photo', 'Photo', Camera],
+              ['barcode', 'Barcode', Barcode],
+            ] as const
+          ).map(([key, label, Icon]) => (
+            <PressableScale
+              key={key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === key }}
+              accessibilityLabel={`${label} mode`}
+              onPress={() => {
+                tap();
+                setMode(key);
+              }}
+              style={[s.mode, mode === key && s.modeActive]}
+            >
+              <Icon size={15} color={mode === key ? c.ink : '#BCB4CA'} />
+              <Type
+                style={{
+                  fontSize: 13,
+                  fontFamily: f.bold,
+                  color: mode === key ? c.ink : '#BCB4CA',
+                }}
+              >
+                {label}
+              </Type>
+            </PressableScale>
+          ))}
+        </View>
+      )}
+      {barcode ? (
+        <View style={s.typed}>
+          <TextInput
+            accessibilityLabel="Type a barcode"
+            placeholder="Or type the barcode digits"
+            placeholderTextColor="#8E86A0"
+            keyboardType="number-pad"
+            value={typedCode}
+            onChangeText={(value) => setTypedCode(value.replace(/\D/g, '').slice(0, 14))}
+            onSubmitEditing={() => typedCode.length >= 8 && void lookup(typedCode)}
+            style={s.typedInput}
+          />
+          <Button
+            label="Look up"
+            onPress={() => void lookup(typedCode)}
+            disabled={typedCode.length < 8 || !!lookingUp}
+            busy={!!lookingUp}
+          />
+        </View>
+      ) : (
+        <View style={s.controls}>
+          <IconButton
+            label="Import a food photo"
+            icon={Images}
+            onPress={() => void pick()}
+            disabled={busy || taking}
+            style={s.darkButton}
+            color={c.white}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Take photo"
+            accessibilityState={{ disabled: !ready || busy || taking }}
+            disabled={!ready || busy || taking}
+            onPress={() => void snap()}
+            style={({ pressed }) => [
+              s.shutter,
+              (!ready || busy || taking) && { opacity: 0.4 },
+              pressed && { transform: [{ scale: 0.93 }] },
+            ]}
+          >
+            <View style={s.shutterInside} />
+          </Pressable>
+          <IconButton
+            label="Flip camera"
+            icon={SwitchCamera}
+            onPress={() => {
+              setReady(false);
+              setFacing(facing === 'back' ? 'front' : 'back');
+            }}
+            disabled={!permission?.granted || taking || busy}
+            style={s.darkButton}
+            color={c.white}
+          />
+        </View>
+      )}
       <Type
         kind="small"
         style={{ textAlign: 'center', color: '#BCB4CA', paddingBottom: 12, paddingHorizontal: 18 }}
       >
-        {analysisUrl ? 'Snap. Auto-scan. Edit & save.' : 'Snap. Review. Save a little moment.'}
+        {barcode
+          ? 'Product data from USDA Branded Foods and Open Food Facts.'
+          : analysisUrl
+            ? 'Snap. Auto-scan. Quick check. Save.'
+            : 'Snap. Review. Save a little moment.'}
       </Type>
     </SafeAreaView>
   );
@@ -222,4 +339,55 @@ const s = StyleSheet.create({
     padding: 5,
   },
   shutterInside: { flex: 1, backgroundColor: c.white, borderRadius: 35 },
+  barcodeFrame: {
+    position: 'absolute',
+    top: '34%',
+    left: '10%',
+    right: '10%',
+    height: '24%',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 20,
+    justifyContent: 'center',
+  },
+  laser: { height: 2, marginHorizontal: 14, backgroundColor: '#FF8FA3', borderRadius: 1 },
+  modes: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    gap: 4,
+    padding: 4,
+    marginTop: 14,
+    borderRadius: 18,
+    backgroundColor: '#2D2639',
+  },
+  mode: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 14,
+    minHeight: 40,
+  },
+  modeActive: { backgroundColor: c.lime },
+  typed: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+  },
+  typedInput: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    backgroundColor: '#393143',
+    color: c.white,
+    fontFamily: f.medium,
+    fontSize: 15,
+  },
 });

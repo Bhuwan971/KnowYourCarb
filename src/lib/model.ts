@@ -1,3 +1,8 @@
+export type Confidence = 'high' | 'medium' | 'low';
+export type Portion = { label: string; grams: number };
+export type Per100g = Partial<Record<'carbs' | 'calories' | NutrientKey, number>>;
+// Another plausible identity for the same food, already grounded for the same portion.
+export type Alternative = Omit<FoodItem, 'id' | 'servings' | 'alternatives'>;
 export type FoodItem = {
   id: string;
   name: string;
@@ -15,12 +20,25 @@ export type FoodItem = {
   calcium?: number;
   iron?: number;
   portionGrams?: number;
+  // The first estimated amount, so relative portion choices stay anchored to it.
+  originalGrams?: number;
+  originalPortion?: string;
   carbsRange?: { min: number; max: number };
   nutritionBasis?: 'reference' | 'label' | 'estimate';
   referenceId?: string;
   referenceDescription?: string;
   fdcId?: number;
-  nutritionPer100g?: Partial<Record<'carbs' | 'calories' | NutrientKey, number>>;
+  nutritionPer100g?: Per100g;
+  dataset?: 'fndds' | 'sr';
+  // Where label data came from: 'Open Food Facts', 'USDA Branded Foods', or a photo label.
+  sourceName?: string;
+  barcode?: string;
+  brand?: string;
+  portions?: Portion[];
+  confidence?: Confidence;
+  visibility?: 'clear' | 'partial' | 'assumed';
+  checks?: string[];
+  alternatives?: Alternative[];
   servings: number;
 };
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -36,7 +54,22 @@ export type Meal = {
   source: Source;
   uncertainty?: string;
   reviewed: boolean;
+  // What the person typed when they described the meal instead of photographing it.
+  prompt?: string;
 };
+export const confidenceRank: Record<Confidence, number> = { low: 0, medium: 1, high: 2 };
+// Mirrors the server: confidence describes how tight the carb interval is.
+export function carbConfidence(
+  carbs: number,
+  range: { min: number; max: number } | null,
+): Confidence {
+  const half = range ? (range.max - range.min) / 2 : Math.max(5, carbs * 0.3);
+  return half <= Math.max(3, carbs * 0.15)
+    ? 'high'
+    : half <= Math.max(8, carbs * 0.35)
+      ? 'medium'
+      : 'low';
+}
 export type Settings = { haptics: boolean; goal: number | null; name: string };
 export const defaultSettings: Settings = { haptics: true, goal: null, name: '' };
 export const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -66,12 +99,39 @@ export function totalNutrient(items: FoodItem[], key: NutrientKey): number | nul
     ? round(items.reduce((sum, item) => sum + item[key]! * item.servings, 0))
     : null;
 }
+// Items without a range were entered or weighed by the person and count as exact.
 export function totalCarbsRange(items: FoodItem[]): { min: number; max: number } | null {
-  if (!items.length || !items.every((item) => item.carbsRange)) return null;
+  if (!items.length || !items.some((item) => item.carbsRange)) return null;
+  if (
+    !items.every(
+      (item) => Number.isFinite(item.servings) && (item.carbsRange || Number.isFinite(item.carbs)),
+    )
+  )
+    return null;
   return {
-    min: round(items.reduce((sum, item) => sum + item.carbsRange!.min * item.servings, 0)),
-    max: round(items.reduce((sum, item) => sum + item.carbsRange!.max * item.servings, 0)),
+    min: round(
+      items.reduce((sum, item) => sum + (item.carbsRange?.min ?? item.carbs) * item.servings, 0),
+    ),
+    max: round(
+      items.reduce((sum, item) => sum + (item.carbsRange?.max ?? item.carbs) * item.servings, 0),
+    ),
   };
+}
+export function mealConfidence(items: FoodItem[]): Confidence | null {
+  const total = totalCarbs(items);
+  if (!items.length || !Number.isFinite(total)) return null;
+  if (!items.some((item) => item.carbsRange || item.confidence)) return null;
+  const range = totalCarbsRange(items);
+  // Without any interval (labels, weighed or typed values) the least certain item decides.
+  if (!range)
+    return items.reduce<Confidence>(
+      (low, item) =>
+        item.confidence && confidenceRank[item.confidence] < confidenceRank[low]
+          ? item.confidence
+          : low,
+      'high',
+    );
+  return carbConfidence(total, range);
 }
 // A confirmed weight scales every known nutrient together; unknown nutrients remain unknown.
 export function withPortionWeight(item: FoodItem, grams: number): FoodItem {
@@ -97,6 +157,147 @@ export function withPortionWeight(item: FoodItem, grams: number): FoodItem {
     if (Number.isFinite(nutritionPer100g[key]))
       next[key] = round((nutritionPer100g[key]! * grams) / 100);
   return next;
+}
+// A household measure from USDA is far more reliable than a photo guess, but not a scale reading.
+export function withHouseholdPortion(item: FoodItem, portion: Portion, quantity = 1): FoodItem {
+  const grams = round(portion.grams * quantity);
+  const next = withPortionWeight(item, grams);
+  const label = portion.label.replace(/^1\s+/, '');
+  next.portion = quantity === 1 ? portion.label : `${quantity} × ${label}`;
+  if (Number.isFinite(next.carbs)) {
+    const spread = next.carbs * 0.1;
+    next.carbsRange = { min: round(next.carbs - spread), max: round(next.carbs + spread) };
+    next.confidence = carbConfidence(next.carbs, next.carbsRange);
+  }
+  next.checks = [];
+  return next;
+}
+// Swap what the food is while keeping how much was eaten.
+export function withIdentity(item: FoodItem, alternative: Alternative): FoodItem {
+  const { id, servings, alternatives = [], ...previous } = item;
+  let next: FoodItem = {
+    ...alternative,
+    id,
+    servings,
+    alternatives: [previous, ...alternatives.filter((a) => a.name !== alternative.name)],
+  };
+  const grams = item.portionGrams;
+  if (grams && next.portionGrams && next.nutritionPer100g && grams !== next.portionGrams) {
+    const ratio = grams / next.portionGrams;
+    const range = next.carbsRange;
+    next = { ...withPortionWeight(next, grams), portion: item.portion };
+    if (range) next.carbsRange = { min: round(range.min * ratio), max: round(range.max * ratio) };
+  }
+  return next;
+}
+export type FoodRecord = {
+  id: number;
+  description: string;
+  dataset: 'fndds' | 'sr';
+  per100g: Per100g;
+  portions: Portion[];
+};
+export type Product = {
+  code?: string;
+  name: string;
+  brand?: string;
+  source: string;
+  sourceId?: string | number;
+  unit: 'g' | 'ml';
+  per100g: Per100g;
+  serving: Portion | null;
+  packageSize: Portion | null;
+};
+function scaled(per100g: Per100g, grams: number) {
+  const values: Partial<FoodItem> = {};
+  for (const key of ['carbs', 'calories', ...nutrientFields.map(({ key }) => key)] as const)
+    if (Number.isFinite(per100g[key])) values[key] = round((per100g[key]! * grams) / 100);
+  if (values.calories !== undefined) values.calories = Math.round(values.calories);
+  return values;
+}
+const friendly = (description: string) => {
+  const [head, ...rest] = description.split(', ');
+  return rest.length ? `${head} (${rest.slice(0, 2).join(', ').toLowerCase()})` : head;
+};
+// USDA's "quantity not specified" is its typical amount eaten; show it in plain words.
+export const portionName = (label: string) =>
+  /quantity not specified/i.test(label) ? 'typical serving' : label;
+// A sensible starting amount: a regular unit, else USDA's typical serving, never "1 miniature".
+export function defaultPortion(food: FoodRecord): Portion {
+  const find = (pattern: RegExp) => food.portions.find((p) => pattern.test(p.label));
+  const chosen =
+    find(/^1 (medium|regular|slice|piece|cup|serving|can|bottle|sandwich|burrito)\b/i) ??
+    find(/quantity not specified/i) ??
+    food.portions.find((p) => !/miniature|mini\b|small/i.test(p.label)) ??
+    food.portions[0];
+  return chosen ? { ...chosen, label: portionName(chosen.label) } : { label: '100 g', grams: 100 };
+}
+export function itemFromFood(food: FoodRecord, portion?: Portion, quantity = 1): FoodItem {
+  const chosen = portion ?? defaultPortion(food);
+  const base: FoodItem = {
+    id: uid(),
+    name: friendly(food.description).slice(0, 100),
+    portion: chosen.label,
+    carbs: 0,
+    servings: 1,
+    portionGrams: chosen.grams,
+    nutritionBasis: 'reference',
+    fdcId: food.id,
+    referenceDescription: food.description,
+    dataset: food.dataset,
+    nutritionPer100g: { ...food.per100g },
+    portions: food.portions.slice(0, 8),
+    ...scaled(food.per100g, chosen.grams),
+  };
+  return withHouseholdPortion(base, chosen, quantity);
+}
+export function itemFromProduct(product: Product): FoodItem {
+  const serving = product.serving ?? { label: `100 ${product.unit}`, grams: 100 };
+  const portions = [
+    product.serving,
+    { label: `100 ${product.unit}`, grams: 100 },
+    product.packageSize && {
+      ...product.packageSize,
+      label: `whole pack (${product.packageSize.label})`,
+    },
+  ].filter((p): p is Portion => !!p);
+  return {
+    id: uid(),
+    name: (product.brand && !product.name.toLowerCase().includes(product.brand.toLowerCase())
+      ? `${product.brand} ${product.name}`
+      : product.name
+    ).slice(0, 100),
+    portion: serving.label.slice(0, 80),
+    carbs: 0,
+    servings: 1,
+    ...scaled(product.per100g, serving.grams),
+    portionGrams: serving.grams,
+    nutritionPer100g: { ...product.per100g },
+    nutritionBasis: 'label',
+    sourceName: product.source,
+    barcode: product.code,
+    brand: product.brand,
+    portions,
+    confidence: 'high',
+    checks: [],
+  };
+}
+// Foods you have logged before, newest first, so a repeat meal is one tap and exactly as you left it.
+export function recentFoods(meals: Meal[], query = '', limit = 6): FoodItem[] {
+  const q = query.trim().toLowerCase();
+  const seen = new Set<string>();
+  const result: FoodItem[] = [];
+  for (const meal of meals) {
+    if (meal.source === 'sample') continue;
+    for (const item of meal.items) {
+      const key = item.name.trim().toLowerCase();
+      if (!key || seen.has(key) || (q && !key.includes(q))) continue;
+      seen.add(key);
+      result.push({ ...item, id: uid(), servings: 1 });
+      if (result.length >= limit) return result;
+    }
+  }
+  return result;
 }
 export function localDay(date: string | Date): string {
   const d = new Date(date);
@@ -228,3 +429,5 @@ export const sourceLabel: Record<Source, string> = {
   ai: 'Photo estimate',
   sample: 'Sample memory',
 };
+export const mealSourceLabel = (meal: Meal) =>
+  meal.source === 'ai' && !meal.photo ? 'AI estimate' : sourceLabel[meal.source];

@@ -1,12 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../server/index.mjs';
-import { validateAnalysis, validateImage } from '../server/analysis.mjs';
+import { validatePerception, validateImage } from '../server/analysis.mjs';
+import { clearSourceCache } from '../server/sources.mjs';
+import { fakeProvider, perception, perceptionItem } from './helpers.mjs';
 const result = {
   title: 'Quinoa bowl',
   items: [{ name: 'Quinoa', portion: '½ cup', carbs: 20, calories: 111 }],
   uncertainty: 'The portion is approximate; sauce and hidden ingredients may change the carbs.',
 };
+const quinoa = perceptionItem({
+  name: 'Quinoa',
+  search: 'quinoa, cooked',
+  portion: '½ cup',
+  household: { quantity: 0.5, unit: 'cup' },
+  portionGrams: 90,
+  carbs: 20,
+  calories: 111,
+  protein: 4,
+  fat: 2,
+});
 const image = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]).toString('base64');
 async function withServer(options, task) {
   const app = createApp(options);
@@ -24,21 +37,10 @@ test('missing credentials reports unavailable, never fabricates photo carbs', as
     assert.equal(response.status, 503);
   });
 });
-test('server proxies the image, disables interaction storage and returns validated estimates', async () => {
-  let request;
+test('server proxies the image, disables interaction storage and returns grounded estimates', async () => {
+  const fake = fakeProvider({ provider: 'gemini', perceive: () => perception([quinoa]) });
   await withServer(
-    {
-      apiKey: 'test-key',
-      fetchImpl: async (_, options) => {
-        request = JSON.parse(options.body);
-        return Response.json({
-          status: 'completed',
-          steps: [
-            { type: 'model_output', content: [{ type: 'text', text: JSON.stringify(result) }] },
-          ],
-        });
-      },
-    },
+    { apiKey: 'test-key', provider: 'gemini', fetchImpl: fake.fetchImpl },
     async (url) => {
       const response = await fetch(`${url}/analyze`, {
         method: 'POST',
@@ -46,12 +48,73 @@ test('server proxies the image, disables interaction storage and returns validat
         body: JSON.stringify({ image, mimeType: 'image/jpeg' }),
       });
       assert.equal(response.status, 200);
-      assert.deepEqual(await response.json(), result);
+      const data = await response.json();
+      assert.equal(data.items[0].nutritionBasis, 'reference');
+      assert.match(data.items[0].referenceDescription, /quinoa/i);
+      assert.equal(data.grounding.matched, 1);
+      const request = fake.calls.perception[0].body;
       assert.equal(request.store, false);
       assert.equal(request.input[1].data, image);
       assert.equal(request.generation_config.thinking_level, 'low');
+      assert.equal(fake.calls.match[0].body.store, false);
     },
   );
+});
+test('descriptions are analyzed without a photo', async () => {
+  const fake = fakeProvider({ perceive: () => perception([quinoa]) });
+  await withServer(
+    { apiKey: 'test', provider: 'openrouter', fetchImpl: fake.fetchImpl },
+    async (url) => {
+      const response = await fetch(`${url}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'half a cup of quinoa' }),
+      });
+      assert.equal(response.status, 200);
+      assert.equal(fake.calls.perception[0].body.messages[1].content.length, 1);
+      const bad = await fetch(`${url}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: '' }),
+      });
+      assert.equal(bad.status, 400);
+    },
+  );
+});
+test('food search and lookup answer from the bundled USDA database without an AI key', async () => {
+  await withServer({ apiKey: '' }, async (url) => {
+    const health = await (await fetch(`${url}/health`)).json();
+    assert.ok(health.foods > 10000);
+    const search = await (await fetch(`${url}/foods/search?q=banana`)).json();
+    assert.match(search.foods[0].description, /banana/i);
+    assert.deepEqual(search.branded, []);
+    const food = await (await fetch(`${url}/foods/${search.foods[0].id}`)).json();
+    assert.equal(food.id, search.foods[0].id);
+    assert.equal((await fetch(`${url}/foods/1`)).status, 404);
+    assert.equal((await fetch(`${url}/foods/search?q=`)).status, 400);
+  });
+});
+test('barcodes are looked up server-side and missing products say what to do next', async () => {
+  clearSourceCache();
+  const fetchImpl = async (target) =>
+    String(target).includes('3017624010701')
+      ? Response.json({
+          status: 1,
+          product: {
+            product_name: 'Spread',
+            nutriments: { carbohydrates_100g: 57.5, 'energy-kcal_100g': 539 },
+          },
+        })
+      : Response.json({ status: 0 });
+  await withServer({ apiKey: '', fetchImpl }, async (url) => {
+    const found = await fetch(`${url}/barcode/3017624010701`);
+    assert.equal(found.status, 200);
+    assert.equal((await found.json()).per100g.carbs, 57.5);
+    const missing = await fetch(`${url}/barcode/0000000000000`);
+    assert.equal(missing.status, 404);
+    assert.match((await missing.json()).error, /nutrition label/);
+    assert.equal((await fetch(`${url}/barcode/abc`)).status, 404);
+  });
 });
 test('a stalled provider returns a timeout response with a manual fallback', async () => {
   await withServer(
@@ -102,11 +165,13 @@ test('disconnecting from the scan cancels the provider request', async () => {
 });
 test('invalid model results and non-food responses are rejected', () => {
   for (const carbs of [-5, Infinity, '20', 2001])
-    assert.throws(() => validateAnalysis({ ...result, items: [{ ...result.items[0], carbs }] }));
+    assert.throws(() => validatePerception({ ...result, items: [{ ...result.items[0], carbs }] }));
   for (const calories of [undefined, null, -1, Infinity, '111', 20001])
-    assert.throws(() => validateAnalysis({ ...result, items: [{ ...result.items[0], calories }] }));
-  assert.throws(() => validateAnalysis({ ...result, items: [] }), { status: 422 });
-  assert.throws(() => validateAnalysis({ ...result, uncertainty: '' }));
+    assert.throws(() =>
+      validatePerception({ ...result, items: [{ ...result.items[0], calories }] }),
+    );
+  assert.throws(() => validatePerception({ ...result, items: [] }), { status: 422 });
+  assert.throws(() => validatePerception({ ...result, uncertainty: '' }));
   assert.throws(() =>
     validateImage({
       mimeType: 'image/jpeg',

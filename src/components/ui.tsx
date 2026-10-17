@@ -4,7 +4,6 @@ import {
   Image,
   ImageSourcePropType,
   ImageStyle,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +16,7 @@ import {
 import { LucideIcon } from 'lucide-react-native';
 import { colors as c, fonts as f } from '../lib/theme';
 import { samplePhoto } from '../lib/samples';
+import { PressableScale } from './PressableScale';
 export function Type({
   children,
   style,
@@ -57,13 +57,14 @@ export function Button({
 }) {
   const color = variant === 'primary' ? c.white : variant === 'danger' ? c.error : c.ink;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: disabled || busy, busy }}
       onPress={onPress}
       disabled={disabled || busy}
-      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+      hoverStyle={{ opacity: 0.88 }}
+      style={[
         styles.button,
         variant === 'primary' && { backgroundColor: c.purple },
         variant === 'secondary' && { backgroundColor: c.lavender },
@@ -74,8 +75,6 @@ export function Button({
         },
         variant === 'danger' && { backgroundColor: c.pink },
         (disabled || busy) && { opacity: 0.45 },
-        pressed && { transform: [{ scale: 0.98 }], opacity: 0.8 },
-        hovered && !disabled && { opacity: 0.86 },
         style,
       ]}
     >
@@ -85,7 +84,7 @@ export function Button({
         <Icon size={18} color={color} strokeWidth={1.8} />
       ) : null}
       <Type style={{ fontFamily: f.bold, color, fontSize: 14 }}>{label}</Type>
-    </Pressable>
+    </PressableScale>
   );
 }
 export function IconButton({
@@ -104,20 +103,18 @@ export function IconButton({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-        styles.iconButton,
-        (pressed || hovered) && { backgroundColor: c.lavender },
-        disabled && { opacity: 0.4 },
-        style,
-      ]}
+      hitSlop={6}
+      scaleTo={0.92}
+      hoverStyle={{ backgroundColor: c.lavender }}
+      style={[styles.iconButton, disabled && { opacity: 0.4 }, style]}
     >
       <Icon size={21} color={color} strokeWidth={1.7} />
-    </Pressable>
+    </PressableScale>
   );
 }
 export function Chip({

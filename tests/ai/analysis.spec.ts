@@ -28,6 +28,11 @@ const estimate = {
   ],
   uncertainty: 'Quinoa portion and dressing are approximate.',
 };
+// Food fields live inside each food card; open it by its accessible name.
+const openFood = (page: Page, name: string) =>
+  page
+    .getByRole('button', { name: new RegExp(`^${name}, .* grams of carbs\\. Edit details$`) })
+    .click();
 async function importPhoto(page: Page) {
   await page.goto('/');
   const picker = page.waitForEvent('filechooser');
@@ -49,13 +54,15 @@ test('import automatically fills nutrition; edits and portions persist without r
   await expect(page.getByText(estimate.title, { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Edit meal details', exact: true }).click();
   await expect(page.getByLabel('Memory name', { exact: true })).toHaveValue(estimate.title);
+  await openFood(page, 'Cooked quinoa');
   await expect(page.getByLabel('Food 1 calories (kcal / portion)', { exact: true })).toHaveValue(
     '222',
   );
-  await expect(page.getByText('272 kcal', { exact: true })).toBeVisible();
+  await expect(page.getByText('272', { exact: true })).toBeVisible();
   await page.getByLabel('Food 1 calories (kcal / portion)', { exact: true }).fill('230');
-  await page.getByLabel('Food 1 portions eaten', { exact: true }).fill('1.5');
-  await expect(page.getByText('395 kcal', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'More of Cooked quinoa', exact: true }).click();
+  await page.getByRole('button', { name: 'More of Cooked quinoa', exact: true }).click();
+  await expect(page.getByText('395', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save memory', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Save memory', exact: true }).click();
   await expect(
@@ -63,11 +70,11 @@ test('import automatically fills nutrition; edits and portions persist without r
   ).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Open Quinoa and greens', exact: true }).click();
-  await page.getByRole('button', { name: 'Edit meal details', exact: true }).click();
+  await openFood(page, 'Cooked quinoa');
   await expect(page.getByLabel('Food 1 calories (kcal / portion)', { exact: true })).toHaveValue(
     '230',
   );
-  await expect(page.getByLabel('Food 1 portions eaten', { exact: true })).toHaveValue('1.5');
+  await expect(page.getByText('1 cup · 185 g · ×1½', { exact: true })).toBeVisible();
   expect(uploads).toBe(1);
 });
 test('camera shutter automatically scans a captured photo', async ({ page, context }) => {
@@ -88,7 +95,7 @@ test('camera shutter automatically scans a captured photo', async ({ page, conte
   await expect(page.getByText(estimate.title, { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Edit meal details', exact: true }).click();
   await expect(page.getByLabel('Memory name', { exact: true })).toHaveValue(estimate.title);
-  await expect(page.getByText('272 kcal', { exact: true })).toBeVisible();
+  await expect(page.getByText('272', { exact: true })).toBeVisible();
   expect(uploads).toBe(1);
 });
 test('service failure preserves the photo and manual review; retry fills nutrition', async ({
@@ -113,8 +120,8 @@ test('service failure preserves the photo and manual review; retry fills nutriti
   await expect(page.getByRole('button', { name: 'Save memory', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Retry scan', exact: true }).click();
   await expect(page.getByText(estimate.title, { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Edit meal details', exact: true }).click();
   await expect(page.getByLabel('Memory name', { exact: true })).toHaveValue(estimate.title);
+  await openFood(page, 'Cooked quinoa');
   await expect(page.getByLabel('Food 1 calories (kcal / portion)', { exact: true })).toHaveValue(
     '222',
   );
@@ -143,7 +150,6 @@ test('cancelled scan cannot overwrite manual edits, and a fresh retry still work
   await expect(page.getByLabel('Memory name', { exact: true })).toHaveValue('My manual lunch');
   await page.getByRole('button', { name: 'Retry scan', exact: true }).click();
   await expect(page.getByText(estimate.title, { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Edit meal details', exact: true }).click();
   await expect(page.getByLabel('Memory name', { exact: true })).toHaveValue(estimate.title);
   expect(uploads).toBe(2);
 });
@@ -205,11 +211,9 @@ test('a stalled scan times out, preserves manual edits and allows a fresh retry'
   });
   await importPhoto(page);
   await expect.poll(() => uploads).toBe(1);
-  await page.clock.fastForward(15_000);
-  await expect(
-    page.getByText('Still waiting for your estimate. You can review manually below.'),
-  ).toBeVisible();
-  await page.clock.fastForward(105_001);
+  await page.clock.fastForward(20_000);
+  await expect(page.getByText(/Still working\. Slower photo services/)).toBeVisible();
+  await page.clock.fastForward(100_001);
   await expect(page.getByRole('alert')).toContainText('That estimate took too long.');
   await expect(page.getByText('Reading your plate…')).toHaveCount(0);
   await expect(page.getByRole('img', { name: 'Food photo', exact: true })).toBeVisible();
@@ -229,32 +233,31 @@ test('scan results stay minimal; extra nutrients, portion corrections and unknow
   await expect(page.getByText(estimate.title, { exact: true })).toBeVisible();
   await expect(page.getByText('Your scan is ready.')).toHaveCount(0);
   await expect(page.getByLabel('Memory name', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('10.1 g', { exact: true })).toBeVisible();
-  await expect(page.getByText('Estimated carbs: 38–57 g')).toBeVisible();
+  await expect(page.getByText('10.1', { exact: true })).toBeVisible();
+  await expect(page.getByText('likely 38–57 g')).toBeVisible();
   await page.screenshot({ path: 'test-results/ai/clean-scan-phone.png', fullPage: true });
-  await page.getByRole('button', { name: 'More nutrition', exact: true }).click();
+  await page.getByRole('button', { name: 'How this estimate was made', exact: true }).click();
   await expect(
     page.getByText('Sugar', { exact: true }).locator('..').getByText('4.6 g', { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText('— means unknown. Sugar and fiber are included in total carbs.'),
+    page.getByText(/Sugar and fiber are included in total carbs\. — means unknown\./),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Edit meal details', exact: true }).click();
+  await openFood(page, 'Cooked quinoa');
   await page.getByLabel('Food 1 weight (g)', { exact: true }).fill('92.5');
   await expect(page.getByLabel('Food 1 carbs (g / portion)', { exact: true })).toHaveValue('19.7');
-  await expect(page.getByText('161 kcal', { exact: true })).toBeVisible();
+  await expect(page.getByText('161', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'More nutrients for food 1', exact: true }).click();
   await expect(page.getByLabel('Food 1 sugar (g / portion)', { exact: true })).toHaveValue('0.8');
   await page.getByLabel('Food 1 sugar (g / portion)', { exact: true }).fill('1');
   await page.getByRole('button', { name: 'Save memory', exact: true }).click();
   await page.reload();
   await page.getByRole('button', { name: 'Open Quinoa and greens', exact: true }).click();
-  await page.getByRole('button', { name: 'More nutrition', exact: true }).click();
+  await page.getByRole('button', { name: 'How this estimate was made', exact: true }).click();
   await expect(page.getByText('4 g', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
   await page.setViewportSize({ width: 1440, height: 1050 });
-  await page.getByRole('button', { name: 'More nutrition', exact: true }).click();
   await page.screenshot({ path: 'test-results/ai/clean-scan-desktop.png', fullPage: true });
 });

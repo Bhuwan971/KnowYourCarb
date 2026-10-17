@@ -1,7 +1,9 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
-import { estimate, validateImage } from './analysis.mjs';
+import { estimate, validateInput } from './analysis.mjs';
 import { analysisConfig } from './config.mjs';
+import { foodCount, getFood, searchFoods } from './foods.mjs';
+import { lookupBarcode, searchBranded } from './sources.mjs';
 const MAX_BODY = 6_100_000;
 function readJson(req) {
   return new Promise((resolve, reject) => {
@@ -41,6 +43,8 @@ export function createApp({
   provider = analysisConfig().provider,
   apiKey = analysisConfig().apiKey,
   model = analysisConfig().model,
+  matchModel = analysisConfig().matchModel,
+  usdaKey = analysisConfig().usdaKey,
   origins = (process.env.ALLOWED_ORIGINS || 'http://localhost:8081,http://127.0.0.1:8081').split(
     ',',
   ),
@@ -75,23 +79,78 @@ export function createApp({
       res.end();
       return;
     }
-    if (req.url === '/health' && req.method === 'GET') {
-      send(200, { ok: true, configured: Boolean(apiKey), provider });
+    const url = new URL(req.url, 'http://localhost');
+    if (url.pathname === '/health' && req.method === 'GET') {
+      send(200, {
+        ok: true,
+        configured: Boolean(apiKey),
+        provider,
+        foods: foodCount(),
+        branded: Boolean(usdaKey),
+      });
       return;
     }
-    if (req.url !== '/analyze' || req.method !== 'POST') {
+    const limited = (bucket, max) => {
+      const key = `${bucket}:${req.socket.remoteAddress}`;
+      const time = now();
+      for (const [k, entry] of limits) if (entry.reset <= time) limits.delete(k);
+      const limit = limits.get(key) || { count: 0, reset: time + 60_000 };
+      limits.set(key, limit);
+      return ++limit.count > max;
+    };
+    if (req.method === 'GET' && url.pathname === '/foods/search') {
+      if (limited('search', 120))
+        return send(429, { error: 'Searching a little fast. Wait a moment.' });
+      const query = (url.searchParams.get('q') || '').trim().slice(0, 100);
+      if (!query) return send(400, { error: 'Type a food to search.' });
+      const foods = searchFoods(query, { limit: 12 });
+      let branded = [];
+      try {
+        branded = await searchBranded(query, {
+          fetchImpl,
+          usdaKey,
+          limit: 5,
+          signal: AbortSignal.timeout(4000),
+        });
+      } catch {
+        // Branded results are optional; the bundled USDA database still answers.
+      }
+      return send(200, { foods, branded });
+    }
+    const foodMatch = url.pathname.match(/^\/foods\/(\d{1,9})$/);
+    if (req.method === 'GET' && foodMatch) {
+      const food = getFood(Number(foodMatch[1]));
+      return food ? send(200, food) : send(404, { error: 'That food isn’t in the database.' });
+    }
+    const barcodeMatch = url.pathname.match(/^\/barcode\/([0-9]{6,14})$/);
+    if (req.method === 'GET' && barcodeMatch) {
+      if (limited('barcode', 30))
+        return send(429, { error: 'A few too many scans. Wait a minute.' });
+      try {
+        const product = await lookupBarcode(barcodeMatch[1], {
+          fetchImpl,
+          usdaKey,
+          signal: AbortSignal.timeout(8000),
+        });
+        return product
+          ? send(200, product)
+          : send(404, {
+              error: 'We couldn’t find that barcode yet. Snap the nutrition label instead.',
+            });
+      } catch (error) {
+        return send(error.status || 502, {
+          error: error.status ? error.message : 'The food databases couldn’t be reached.',
+        });
+      }
+    }
+    if (url.pathname !== '/analyze' || req.method !== 'POST') {
       send(404, { error: 'Not found.' });
       return;
     }
-    const address = req.socket.remoteAddress;
-    const time = now();
-    for (const [key, entry] of limits) if (entry.reset <= time) limits.delete(key);
-    const limit = limits.get(address) || { count: 0, reset: time + 60_000 };
-    if (++limit.count > 10) {
+    if (limited('analyze', 10)) {
       send(429, { error: 'A few too many snaps at once. Please wait a minute.' });
       return;
     }
-    limits.set(address, limit);
     if (!apiKey) {
       send(503, {
         error:
@@ -115,13 +174,14 @@ export function createApp({
     res.on('close', cancel);
     try {
       const body = await readJson(req);
-      const image = validateImage(body);
+      const input = validateInput(body);
       send(
         200,
-        await estimate(image, {
+        await estimate(input, {
           provider,
           apiKey,
           model,
+          matchModel,
           fetchImpl,
           timeoutMs,
           signal: controller.signal,

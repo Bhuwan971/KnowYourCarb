@@ -19,7 +19,8 @@ export function expoEnvironment(env, analysisUrl) {
   const result = { ...env, EXPO_PUBLIC_ANALYSIS_URL: analysisUrl, EXPO_NO_DOTENV: '1' };
   // Infisical injection runs in the service child only. Also strip local provider and auth keys.
   for (const key of Object.keys(result)) {
-    if (/^(OPENROUTER_|GEMINI_|INFISICAL_)/.test(key) || key === 'AI_PROVIDER') delete result[key];
+    if (/^(OPENROUTER_|GEMINI_|INFISICAL_|USDA_)/.test(key) || key === 'AI_PROVIDER')
+      delete result[key];
   }
   return result;
 }

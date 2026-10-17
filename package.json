@@ -46,6 +46,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "test": "node --test tests/*.test.mjs",
+    "build:foods": "node scripts/build-food-db.mjs",
     "test:ui": "playwright test",
     "server": "node --env-file-if-exists=.env server/index.mjs",
     "format": "prettier --write src server tests scripts *.ts *.js *.json README.md",
