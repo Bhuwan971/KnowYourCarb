@@ -15,7 +15,7 @@ import {
   uid,
 } from '../../lib/model';
 import { analysisUrl, searchFoods } from '../../lib/analysis';
-import { colors as c, fonts as f } from '../../lib/theme';
+import { colors as c, fonts as f, radius, shadow } from '../../lib/theme';
 import { IconButton, Type } from '../ui';
 import { PressableScale } from '../PressableScale';
 
@@ -37,10 +37,10 @@ function Row({
       onPress={onPress}
       scaleTo={0.985}
       style={s.row}
-      hoverStyle={{ backgroundColor: c.bg }}
+      hoverStyle={{ backgroundColor: c.surfaceAlt }}
     >
       <View style={s.rowIcon}>
-        <Icon size={15} color={c.purple} />
+        <Icon size={15} color={c.purpleDeep} strokeWidth={2.2} />
       </View>
       <View style={{ flex: 1 }}>
         <Type numberOfLines={2} style={{ fontFamily: f.medium, fontSize: 14, lineHeight: 19 }}>
@@ -116,26 +116,32 @@ export function AddFood({
   return (
     <Animated.View entering={FadeIn.duration(160)} style={s.panel}>
       <View style={s.search}>
-        <Search size={17} color={c.muted} />
+        <Search size={17} color={c.muted} strokeWidth={2.2} />
         <TextInput
           accessibilityLabel="Search foods"
           autoFocus
           placeholder={
             analysisUrl ? 'Search USDA foods, brands, your foods…' : 'Search your foods…'
           }
-          placeholderTextColor={c.muted}
+          placeholderTextColor={c.faint}
           value={query}
           onChangeText={setQuery}
           returnKeyType="search"
           style={s.input}
         />
         {loading && <ActivityIndicator size="small" color={c.purple} />}
-        <IconButton label="Close food search" icon={X} onPress={onClose} style={s.close} />
+        <IconButton
+          label="Close food search"
+          icon={X}
+          onPress={onClose}
+          variant="plain"
+          size={40}
+        />
       </View>
       {!!yours.length && (
         <View style={s.section}>
-          <Type kind="label" style={s.sectionTitle}>
-            YOUR FOODS
+          <Type kind="eyebrow" style={s.sectionTitle}>
+            Your foods
           </Type>
           {yours.map((item) => (
             <Row
@@ -150,8 +156,8 @@ export function AddFood({
       )}
       {!!foods.length && (
         <View style={s.section}>
-          <Type kind="label" style={s.sectionTitle}>
-            USDA FOODDATA CENTRAL
+          <Type kind="eyebrow" style={s.sectionTitle}>
+            USDA FoodData Central
           </Type>
           {foods.map((food) => {
             const portion = defaultPortion(food);
@@ -169,8 +175,8 @@ export function AddFood({
       )}
       {!!branded.length && (
         <View style={s.section}>
-          <Type kind="label" style={s.sectionTitle}>
-            BRANDS
+          <Type kind="eyebrow" style={s.sectionTitle}>
+            Brands
           </Type>
           {branded.map((product, i) => {
             const serving = product.serving ?? { label: `100 ${product.unit}`, grams: 100 };
@@ -208,42 +214,40 @@ const s = StyleSheet.create({
   panel: {
     gap: 12,
     padding: 12,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#D9CEF3',
+    borderRadius: radius.lg,
     backgroundColor: c.white,
+    ...shadow.card,
   },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    paddingLeft: 12,
-    borderRadius: 15,
-    backgroundColor: c.bg,
+    paddingLeft: 14,
+    paddingRight: 4,
+    borderRadius: radius.pill,
+    backgroundColor: c.surfaceAlt,
   },
-  input: { flex: 1, height: 46, fontFamily: f.regular, fontSize: 14, color: c.ink },
-  close: { backgroundColor: 'transparent', width: 40, height: 40 },
+  input: { flex: 1, height: 48, fontFamily: f.medium, fontSize: 15, color: c.ink },
   section: { gap: 2 },
   sectionTitle: {
     fontSize: 10,
-    letterSpacing: 1.3,
     color: c.muted,
-    marginLeft: 6,
-    marginBottom: 2,
+    marginLeft: 8,
+    marginBottom: 4,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
+    gap: 12,
     paddingVertical: 9,
-    paddingHorizontal: 6,
-    borderRadius: 13,
-    minHeight: 48,
+    paddingHorizontal: 8,
+    borderRadius: radius.md,
+    minHeight: 50,
   },
   rowIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: c.lavender,
     alignItems: 'center',
     justifyContent: 'center',

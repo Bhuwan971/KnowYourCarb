@@ -1,12 +1,35 @@
 import React, { useState } from 'react';
 import { Platform, Share, StyleSheet, Switch, View } from 'react-native';
-import { Download, Heart, Save, ShieldCheck, ScanLine } from 'lucide-react-native';
+import { Download, Heart, Save, ShieldCheck, ScanLine, Vibrate } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
 import { analysisUrl } from '../../lib/analysis';
-import { colors as c, fonts as f } from '../../lib/theme';
+import { colors as c, fonts as f, radius } from '../../lib/theme';
 import { PageHeading } from '../../components/Shell';
-import { Button, Chip, Field, Type } from '../../components/ui';
+import { Button, Card, Chip, Field, Type } from '../../components/ui';
 import { Mascot } from '../../components/Mascot';
+
+function Head({
+  icon: Icon,
+  title,
+  trailing,
+}: {
+  icon: typeof Heart;
+  title: string;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <View style={s.head}>
+      <View style={s.headIcon}>
+        <Icon size={18} color={c.purpleDeep} strokeWidth={2.2} />
+      </View>
+      <Type kind="heading" style={{ flex: 1 }}>
+        {title}
+      </Type>
+      {trailing}
+    </View>
+  );
+}
+
 export default function SettingsScreen() {
   const { settings, meals, updateSettings, notify } = useApp();
   const [name, setName] = useState(settings.name);
@@ -88,18 +111,13 @@ export default function SettingsScreen() {
   return (
     <>
       <PageHeading
-        eyebrow="A HAPPY LITTLE SPACE ✦"
-        title="A little more you."
+        eyebrow="A happy little space"
+        title="Your space"
         subtitle="Keep things comfortable, simple, and on your terms."
       />
-      <View style={{ maxWidth: 750, gap: 22 }}>
-        <View style={s.card}>
-          <View style={s.heading}>
-            <Heart size={20} color={c.purple} />
-            <Type style={{ fontFamily: f.displayBold, fontSize: 21, flexShrink: 1 }}>
-              Your everyday
-            </Type>
-          </View>
+      <View style={{ maxWidth: 720, gap: 16 }}>
+        <Card padding={22} style={{ gap: 20 }}>
+          <Head icon={Heart} title="Your everyday" />
           <Field
             label="What should we call you?"
             placeholder="Your first name (optional)"
@@ -107,36 +125,28 @@ export default function SettingsScreen() {
             onChangeText={setName}
             maxLength={35}
           />
-          <View style={{ gap: 8 }}>
-            <Field
-              label="Daily carb reference (optional)"
-              value={goal}
-              onChangeText={setGoal}
-              placeholder="Leave blank to just keep track"
-              keyboardType="decimal-pad"
-            />
-            <Type kind="small">
-              Set your own reference if you have one. Carbsy doesn’t choose a target for you.
-            </Type>
-          </View>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 20,
-            }}
-          >
+          <Field
+            label="Daily carb reference (optional)"
+            value={goal}
+            onChangeText={setGoal}
+            placeholder="Leave blank to just keep track"
+            keyboardType="decimal-pad"
+            hint="Set your own reference if you have one. Carbsy doesn’t choose a target for you."
+          />
+          <View style={s.row}>
+            <View style={s.rowIcon}>
+              <Vibrate size={16} color={c.purpleDeep} strokeWidth={2.2} />
+            </View>
             <View style={{ flex: 1 }}>
-              <Type style={{ fontFamily: f.medium }}>A little tap of delight</Type>
-              <Type kind="small">Gentle haptics when you snap and save.</Type>
+              <Type style={{ fontFamily: f.bold, fontSize: 14 }}>A little tap of delight</Type>
+              <Type kind="caption">Gentle haptics when you snap and save.</Type>
             </View>
             <Switch
               accessibilityLabel="Enable haptics"
               value={haptics}
               onValueChange={setHaptics}
-              trackColor={{ false: '#DED7E9', true: '#B7A1E4' }}
-              thumbColor={haptics ? c.purple : '#F5F2F8'}
+              trackColor={{ false: c.lavenderDeep, true: c.purple }}
+              thumbColor={c.white}
             />
           </View>
           {error && (
@@ -151,49 +161,40 @@ export default function SettingsScreen() {
             onPress={() => void save()}
             style={{ alignSelf: 'flex-start' }}
           />
-        </View>
-        <View style={s.card}>
-          <View style={s.heading}>
-            <ShieldCheck size={21} color={c.purple} />
-            <Type style={{ fontFamily: f.displayBold, fontSize: 21, flexShrink: 1 }}>
-              Your memories belong to you.
-            </Type>
-          </View>
-          <Type style={{ color: c.muted, fontSize: 14 }}>
+        </Card>
+        <Card padding={22} style={{ gap: 16 }}>
+          <Head icon={ShieldCheck} title="Your memories belong to you" />
+          <Type kind="small" style={{ fontSize: 14, lineHeight: 21 }}>
             Photos, notes, and carb details are saved on this device. No account needed. You can
             remove a memory by opening its card.
           </Type>
-          <Type kind="small">
+          <Type kind="caption">
             Clearing browser data or uninstalling the app removes your local journal. Exported meal
             details include portions and notes; photos stay on this device.
           </Type>
           <Button
             label="Export meal details"
             icon={Download}
-            variant="ghost"
+            variant="secondary"
             onPress={() => void exportDetails()}
             disabled={!meals.length}
             style={{ alignSelf: 'flex-start' }}
           />
-        </View>
-        <View style={s.card}>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              gap: 8,
-              alignItems: 'center',
-            }}
-          >
-            <View style={s.heading}>
-              <ScanLine size={22} color={c.purple} />
-              <Type style={{ fontFamily: f.displayBold, fontSize: 21, flexShrink: 1 }}>
-                A closer look at your plate
-              </Type>
-            </View>
-            <Chip>{analysisUrl ? 'AUTO SCAN' : 'LOCAL MODE'}</Chip>
-          </View>
-          <Type style={{ color: c.muted, fontSize: 14 }}>
+        </Card>
+        <Card padding={22} style={{ gap: 16 }}>
+          <Head
+            icon={ScanLine}
+            title="A closer look at your plate"
+            trailing={
+              <Chip
+                color={analysisUrl ? c.limeSoft : c.lavender}
+                textColor={analysisUrl ? c.limeInk : c.purpleDeep}
+              >
+                {analysisUrl ? 'AUTO SCAN' : 'LOCAL MODE'}
+              </Chip>
+            }
+          />
+          <Type kind="small" style={{ fontSize: 14, lineHeight: 21 }}>
             {analysisUrl
               ? 'New snaps and imported photos go to your Carbsy service and its AI provider, which identifies the foods and portions. Each food is then matched to USDA FoodData Central (FNDDS and SR Legacy) so nutrition comes from measured composition data, not the AI’s memory. Barcodes are looked up in USDA Branded Foods and Open Food Facts. Photos still can’t reveal exact portions or hidden ingredients, so quick checks ask about what matters most.'
               : 'You can save photos and enter carbs and calories from a nutrition label right now. Connect photo estimates to fill in new snaps automatically.'}
@@ -208,22 +209,22 @@ export default function SettingsScreen() {
             />
           )}
           {status && (
-            <Type accessibilityRole="alert" kind="small">
-              {status}
-            </Type>
+            <View style={s.status}>
+              <Type accessibilityRole="alert" kind="small" style={{ color: c.inkSoft }}>
+                {status}
+              </Type>
+            </View>
           )}
-          <Type kind="small">
+          <Type kind="caption">
             Carbsy tracks total carbohydrate. Photo estimates need review and shouldn’t be used
             alone for medication decisions.
           </Type>
-        </View>
+        </Card>
         <View style={s.about}>
-          <Mascot size={82} happy />
+          <Mascot size={76} happy />
           <View style={{ flex: 1 }}>
-            <Type style={{ fontFamily: f.displayBold, fontSize: 24 }}>
-              Little snaps. A little more clarity.
-            </Type>
-            <Type kind="small" style={{ marginTop: 5 }}>
+            <Type kind="heading">Little snaps. A little more clarity.</Type>
+            <Type kind="caption" style={{ marginTop: 4 }}>
               Carbsy · version 1.0 · Made for the way you live.
             </Type>
           </View>
@@ -232,22 +233,40 @@ export default function SettingsScreen() {
     </>
   );
 }
+
 const s = StyleSheet.create({
-  card: {
-    padding: 25,
-    backgroundColor: c.white,
-    borderRadius: 23,
-    borderWidth: 1,
-    borderColor: c.line,
-    gap: 23,
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: c.lavender,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  heading: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
-  about: {
-    padding: 24,
-    backgroundColor: '#EEE8F8',
-    borderRadius: 23,
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
+    gap: 12,
+    padding: 14,
+    borderRadius: radius.md,
+    backgroundColor: c.surfaceAlt,
+  },
+  rowIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.lavender,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  status: { padding: 14, borderRadius: radius.md, backgroundColor: c.surfaceAlt },
+  about: {
+    padding: 22,
+    backgroundColor: c.lavender,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
   },
 });

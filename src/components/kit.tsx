@@ -3,7 +3,7 @@ import { StyleProp, StyleSheet, TextStyle, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { BadgeCheck, Barcode, Database, PencilLine, Sparkles, Tag } from 'lucide-react-native';
 import { Confidence, FoodItem } from '../lib/model';
-import { colors as c, fonts as f } from '../lib/theme';
+import { colors as c, fonts as f, radius } from '../lib/theme';
 import { Type } from './ui';
 
 const ease = (t: number) => 1 - Math.pow(1 - t, 4);
@@ -62,7 +62,7 @@ export const confidenceMeta: Record<
   high: {
     label: 'Solid estimate',
     short: 'Solid',
-    color: c.lime,
+    color: c.limeSoft,
     ink: c.limeInk,
     explain: 'A database match with a clear, countable portion.',
   },
@@ -123,8 +123,8 @@ export function SourcePill({ item }: { item: FoodItem }) {
   const source = sourceOf(item);
   const Icon = source.label === 'USDA' ? BadgeCheck : source.icon;
   return (
-    <View style={[kit.pill, { backgroundColor: '#F3F0F7' }]} accessibilityLabel={source.detail}>
-      <Icon size={11} color={c.inkSoft} strokeWidth={2} />
+    <View style={[kit.pill, { backgroundColor: c.surfaceAlt }]} accessibilityLabel={source.detail}>
+      <Icon size={11} color={c.inkSoft} strokeWidth={2.2} />
       <Type style={[kit.pillText, { color: c.inkSoft }]}>{source.label}</Type>
     </View>
   );
@@ -168,7 +168,7 @@ const kit = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    borderRadius: 20,
+    borderRadius: radius.pill,
     paddingHorizontal: 9,
     paddingVertical: 4,
     alignSelf: 'flex-start',
@@ -176,16 +176,16 @@ const kit = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3 },
   pillText: { fontSize: 11, lineHeight: 15, fontFamily: f.bold },
   rangeTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: c.lavender,
     overflow: 'visible',
-    marginVertical: 4,
+    marginVertical: 5,
   },
-  rangeFill: { position: 'absolute', top: 0, bottom: 0, borderRadius: 4, opacity: 0.35 },
+  rangeFill: { position: 'absolute', top: 0, bottom: 0, borderRadius: 3, opacity: 0.35 },
   rangeMark: {
     position: 'absolute',
-    top: -4,
+    top: -5,
     width: 16,
     height: 16,
     marginLeft: -8,

@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,15 +12,15 @@ import {
   MessageSquareText,
   NotebookPen,
   Repeat2,
-  UtensilsCrossed,
+  Sparkles,
   Plus,
 } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
 import { dailyTotal, localDay, Meal, newMeal, totalCarbs, uid } from '../../lib/model';
 import { photos, sampleMeal } from '../../lib/samples';
-import { colors as c, fonts as f } from '../../lib/theme';
+import { colors as c, fonts as f, gradients, radius, shadow } from '../../lib/theme';
 import { analysisUrl } from '../../lib/analysis';
-import { Chip, FoodPhoto, IconButton, Type } from '../../components/ui';
+import { Card, FoodPhoto, IconButton, SectionTitle, Type } from '../../components/ui';
 import { TextLink } from '../../components/Shell';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MemoryCard } from '../../components/MemoryCard';
@@ -29,33 +29,38 @@ import { PressableScale } from '../../components/PressableScale';
 import { CountUp } from '../../components/kit';
 
 // A soft progress ring for a personal reference; past 100% it simply stays full.
-function Ring({ progress, size = 92 }: { progress: number; size?: number }) {
-  const stroke = 9;
+function Ring({ progress, size = 84 }: { progress: number; size?: number }) {
+  const stroke = 8;
   const r = (size - stroke) / 2;
   const length = 2 * Math.PI * r;
   return (
-    <Svg width={size} height={size} accessibilityElementsHidden>
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke={c.lavender}
-        strokeWidth={stroke}
-        fill="none"
-      />
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke={c.purple}
-        strokeWidth={stroke}
-        fill="none"
-        strokeLinecap="round"
-        strokeDasharray={`${length} ${length}`}
-        strokeDashoffset={length * (1 - Math.min(1, progress))}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </Svg>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} accessibilityElementsHidden style={StyleSheet.absoluteFill}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke="rgba(255,255,255,0.14)"
+          strokeWidth={stroke}
+          fill="none"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={c.lime}
+          strokeWidth={stroke}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={`${length} ${length}`}
+          strokeDashoffset={length * (1 - Math.min(1, progress))}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
+      <Type style={{ fontFamily: f.displayBold, fontSize: 16, color: c.white }}>
+        {Math.round(progress * 100)}%
+      </Type>
+    </View>
   );
 }
 
@@ -137,363 +142,397 @@ export default function SnapScreen() {
       setTaking(false);
     }
   };
-  const greeting =
-    new Date().getHours() < 12
-      ? 'Good morning'
-      : new Date().getHours() < 17
-        ? 'Good afternoon'
-        : 'Good evening';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const quick = [
+    ...(analysisUrl
+      ? [
+          {
+            label: 'Barcode',
+            icon: Barcode,
+            onPress: () => {
+              tap();
+              router.navigate({ pathname: '/capture', params: { mode: 'barcode' } });
+            },
+          },
+          {
+            label: 'Describe',
+            icon: MessageSquareText,
+            onPress: () => {
+              tap();
+              router.navigate('/describe');
+            },
+          },
+        ]
+      : []),
+    { label: 'Type it', icon: NotebookPen, onPress: manual },
+    { label: 'Sample', icon: Sparkles, onPress: () => demo() },
+  ];
+  const todayCard = (
+    <View style={s.today}>
+      <LinearGradient
+        colors={[...gradients.night]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={s.glow} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <View style={{ flex: 1 }}>
+          <Type kind="eyebrow" style={{ color: c.lime }}>
+            Today
+          </Type>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
+            <CountUp value={grams} decimals={1} style={s.todayValue} />
+            <Type style={{ fontSize: 20, color: 'rgba(255,255,255,0.6)', fontFamily: f.display }}>
+              g
+            </Type>
+          </View>
+          <Type style={{ color: 'rgba(255,255,255,0.68)', fontSize: 13, marginTop: 2 }}>
+            carbs across {today.length} {today.length === 1 ? 'meal' : 'meals'}
+            {settings.goal !== null ? ` · ${settings.goal} g reference` : ''}
+          </Type>
+        </View>
+        {settings.goal !== null && <Ring progress={grams / settings.goal} />}
+      </View>
+      <View style={s.todayFoot}>
+        <Type style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
+          Only saved meals count. Samples never do.
+        </Type>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Your rhythm"
+          onPress={() => router.navigate('/rhythm')}
+          style={({ pressed }) => [s.todayLink, pressed && { opacity: 0.7 }]}
+        >
+          <Type style={{ color: c.white, fontSize: 12, fontFamily: f.bold }}>Your rhythm</Type>
+          <ArrowRight size={14} color={c.white} />
+        </Pressable>
+      </View>
+    </View>
+  );
+  const recent = meals.length
+    ? meals.slice(0, 3).map((meal) => ({
+        key: meal.id,
+        meal,
+        onPress: () => router.navigate(`/memory/${meal.id}`),
+      }))
+    : (['toast', 'berries'] as const).map((kind) => ({
+        key: kind,
+        meal: sampleMeal(kind),
+        onPress: () => demo(kind),
+      }));
   return (
     <>
       <View style={s.greetingRow}>
-        <Type accessibilityRole="header" style={s.greeting}>
-          {greeting}
-          {settings.name ? `, ${settings.name}` : ''}
-        </Type>
-        {!mobile && (
-          <Type kind="small">
-            {new Date().toLocaleDateString([], { month: 'short', day: 'numeric' })}
+        <View style={{ flex: 1 }}>
+          <Type kind="caption" style={{ marginBottom: 2 }}>
+            {new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
           </Type>
-        )}
+          <Type accessibilityRole="header" style={s.greeting}>
+            {greeting}
+            {settings.name ? `, ${settings.name}` : ''}
+          </Type>
+        </View>
       </View>
-      <View style={{ flexDirection: split ? 'row' : 'column', gap: 25 }}>
+      <View style={{ flexDirection: split ? 'row' : 'column', gap: 24 }}>
         <View style={{ flex: split ? 2.2 : undefined }}>
-          <View style={s.cameraCard}>
-            <View
-              style={[
-                s.preview,
-                { height: mobile ? Math.max(360, height - insets.top - insets.bottom - 250) : 640 },
-              ]}
-            >
-              {live ? (
-                <CameraView
-                  ref={camera}
-                  style={{ flex: 1 }}
-                  facing="back"
-                  onCameraReady={() => setReady(true)}
-                  onMountError={() => {
-                    setReady(false);
-                    notify('The camera couldn’t start. You can import a photo instead.');
-                  }}
-                />
-              ) : (
-                <FoodPhoto source={photos.bowl} style={StyleSheet.absoluteFill} />
-              )}
-              <LinearGradient
-                colors={['rgba(0,0,0,0.28)', 'transparent', 'rgba(20,20,20,0.75)']}
-                style={StyleSheet.absoluteFill}
+          <View
+            style={[
+              s.preview,
+              { height: mobile ? Math.max(380, height - insets.top - insets.bottom - 300) : 620 },
+            ]}
+          >
+            {live ? (
+              <CameraView
+                ref={camera}
+                style={{ flex: 1 }}
+                facing="back"
+                onCameraReady={() => setReady(true)}
+                onMountError={() => {
+                  setReady(false);
+                  notify('The camera couldn’t start. You can import a photo instead.');
+                }}
               />
-              <View style={s.previewTop}>
-                <View style={s.previewBadge}>
-                  <View style={[s.greenDot, { backgroundColor: c.lime }]} />
-                  <Type
-                    style={{ fontSize: 10, color: c.white, fontFamily: f.bold, letterSpacing: 1.4 }}
-                  >
-                    {live ? 'YOUR PLATE, IN FOCUS' : 'CAMERA PREVIEW'}
-                  </Type>
-                </View>
-                <IconButton
-                  label="Try a sample snap"
-                  icon={UtensilsCrossed}
-                  onPress={() => demo()}
-                  style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: 44, height: 44 }}
-                  color={c.white}
-                />
-              </View>
-              <View pointerEvents="none" style={[s.frame, mobile && { left: 33, right: 33 }]}>
-                {(['tl', 'tr', 'bl', 'br'] as const).map((corner) => (
-                  <View
-                    key={corner}
-                    style={[
-                      s.corner,
-                      corner === 'tl' && {
-                        left: 0,
-                        top: 0,
-                        borderTopWidth: 2,
-                        borderLeftWidth: 2,
-                        borderTopLeftRadius: 15,
-                      },
-                      corner === 'tr' && {
-                        right: 0,
-                        top: 0,
-                        borderTopWidth: 2,
-                        borderRightWidth: 2,
-                        borderTopRightRadius: 15,
-                      },
-                      corner === 'bl' && {
-                        left: 0,
-                        bottom: 0,
-                        borderBottomWidth: 2,
-                        borderLeftWidth: 2,
-                        borderBottomLeftRadius: 15,
-                      },
-                      corner === 'br' && {
-                        right: 0,
-                        bottom: 0,
-                        borderBottomWidth: 2,
-                        borderRightWidth: 2,
-                        borderBottomRightRadius: 15,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-              <View pointerEvents="none" style={s.previewBottom}>
-                <Type style={{ color: c.white, fontSize: 12, textAlign: 'center' }}>
-                  {live ? 'Center your food in the frame' : 'Open the camera or import a photo'}
+            ) : (
+              <FoodPhoto source={photos.bowl} style={StyleSheet.absoluteFill} />
+            )}
+            <LinearGradient
+              colors={[
+                'rgba(10,8,20,0.5)',
+                'rgba(10,8,20,0)',
+                'rgba(10,8,20,0)',
+                'rgba(10,8,20,0.85)',
+              ]}
+              locations={[0, 0.3, 0.55, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={s.previewTop}>
+              <View style={s.previewBadge}>
+                <View style={[s.liveDot, live && { backgroundColor: c.lime }]} />
+                <Type style={s.previewBadgeText}>
+                  {live ? 'YOUR PLATE, IN FOCUS' : 'CAMERA PREVIEW'}
                 </Type>
               </View>
-              <View style={s.cameraControls}>
-                <IconButton
-                  label="Import a food photo"
-                  icon={Images}
-                  onPress={() => void pick()}
-                  disabled={busy || taking}
-                  style={s.controlButton}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Snap a meal"
-                  accessibilityState={{ disabled: busy || taking || (!!live && !ready) }}
-                  disabled={busy || taking || (!!live && !ready)}
-                  onPress={() => void snap()}
-                  style={({ pressed }) => [
-                    s.shutterOuter,
-                    pressed && { transform: [{ scale: 0.94 }] },
-                    (busy || taking) && { opacity: 0.5 },
+              <IconButton
+                label="Try a sample snap"
+                icon={Sparkles}
+                onPress={() => demo()}
+                variant="glass"
+                size={42}
+              />
+            </View>
+            <View pointerEvents="none" style={[s.frame, mobile && { left: 36, right: 36 }]}>
+              {(['tl', 'tr', 'bl', 'br'] as const).map((corner) => (
+                <View
+                  key={corner}
+                  style={[
+                    s.corner,
+                    corner === 'tl' && {
+                      left: 0,
+                      top: 0,
+                      borderTopWidth: 2.5,
+                      borderLeftWidth: 2.5,
+                      borderTopLeftRadius: 18,
+                    },
+                    corner === 'tr' && {
+                      right: 0,
+                      top: 0,
+                      borderTopWidth: 2.5,
+                      borderRightWidth: 2.5,
+                      borderTopRightRadius: 18,
+                    },
+                    corner === 'bl' && {
+                      left: 0,
+                      bottom: 0,
+                      borderBottomWidth: 2.5,
+                      borderLeftWidth: 2.5,
+                      borderBottomLeftRadius: 18,
+                    },
+                    corner === 'br' && {
+                      right: 0,
+                      bottom: 0,
+                      borderBottomWidth: 2.5,
+                      borderRightWidth: 2.5,
+                      borderBottomRightRadius: 18,
+                    },
                   ]}
-                >
-                  <View style={s.shutterInner}>
-                    <Camera size={26} color={c.white} strokeWidth={1.8} />
-                  </View>
-                </Pressable>
-                <IconButton
-                  label="Add carbs manually"
-                  icon={NotebookPen}
-                  onPress={manual}
-                  style={s.controlButton}
                 />
-              </View>
+              ))}
+            </View>
+            <View pointerEvents="none" style={s.previewHint}>
+              <Type style={s.previewTitle}>
+                {live ? 'Center your plate.' : 'Snap it. Know it.'}
+              </Type>
+              <Type style={s.previewSub}>
+                {live
+                  ? 'Natural light helps the estimate.'
+                  : 'One photo turns into carbs, calories and a memory.'}
+              </Type>
+            </View>
+            <View style={s.cameraControls}>
+              <IconButton
+                label="Import a food photo"
+                icon={Images}
+                onPress={() => void pick()}
+                disabled={busy || taking}
+                variant="glass"
+                size={52}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Snap a meal"
+                accessibilityState={{ disabled: busy || taking || (!!live && !ready) }}
+                disabled={busy || taking || (!!live && !ready)}
+                onPress={() => void snap()}
+                style={({ pressed }) => [
+                  s.shutterOuter,
+                  pressed && { transform: [{ scale: 0.93 }] },
+                  (busy || taking) && { opacity: 0.5 },
+                ]}
+              >
+                <View style={s.shutterInner}>
+                  <Camera size={28} color={c.ink} strokeWidth={2} />
+                </View>
+              </Pressable>
+              <IconButton
+                label="Add carbs manually"
+                icon={NotebookPen}
+                onPress={manual}
+                variant="glass"
+                size={52}
+              />
             </View>
           </View>
           <View style={s.quick}>
-            {[
-              ...(analysisUrl
-                ? [
-                    {
-                      label: 'Barcode',
-                      icon: Barcode,
-                      onPress: () => {
-                        tap();
-                        router.navigate({ pathname: '/capture', params: { mode: 'barcode' } });
-                      },
-                    },
-                    {
-                      label: 'Describe',
-                      icon: MessageSquareText,
-                      onPress: () => {
-                        tap();
-                        router.navigate('/describe');
-                      },
-                    },
-                  ]
-                : []),
-              { label: 'Type it', icon: NotebookPen, onPress: manual },
-            ].map((action) => (
+            {quick.map((action) => (
               <PressableScale
                 key={action.label}
                 accessibilityRole="button"
                 accessibilityLabel={action.label}
                 onPress={action.onPress}
                 style={s.quickButton}
-                hoverStyle={{ borderColor: '#D3C5EE' }}
+                hoverStyle={{ backgroundColor: c.lavender }}
               >
-                <action.icon size={17} color={c.purple} />
+                <action.icon size={16} color={c.purpleDeep} strokeWidth={2.2} />
                 <Type style={s.quickText}>{action.label}</Type>
               </PressableScale>
             ))}
           </View>
-          <Type kind="small" style={{ textAlign: 'center', marginTop: 10, paddingHorizontal: 8 }}>
+          <Type kind="caption" style={{ textAlign: 'center', marginTop: 12, paddingHorizontal: 8 }}>
             {analysisUrl
               ? 'Photos are matched to USDA FoodData Central. A quick check tightens the estimate.'
               : 'AI estimates aren’t connected yet. Your photo can still be saved.'}
           </Type>
-          <View style={s.sampleLink}>
-            <UtensilsCrossed size={16} color={c.purple} />
-            <Type kind="small">Just looking around?</Type>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => demo()}
-              accessibilityLabel="Try a sample snap"
-            >
-              <Type style={{ fontSize: 12, fontFamily: f.bold, color: c.purple }}>
-                Try a sample snap →
-              </Type>
-            </Pressable>
-          </View>
         </View>
-        <View style={{ flex: split ? 1 : undefined, gap: 18 }}>
-          <View style={s.todayCard}>
-            <View style={s.sectionRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={[s.greenDot, { backgroundColor: c.purple }]} />
-                <Type style={{ fontFamily: f.bold, fontSize: 15 }}>Your day, so far</Type>
-              </View>
-              <Chip color="#F3F0F7" textColor={c.muted}>
-                TODAY
-              </Chip>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 14 }}>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7 }}>
-                  <CountUp
-                    value={grams}
-                    decimals={1}
-                    style={{
-                      fontFamily: f.displayBold,
-                      fontSize: 62,
-                      lineHeight: 73,
-                      letterSpacing: -3,
-                    }}
-                  />
-                  <Type style={{ fontSize: 22, color: c.muted, fontFamily: f.display }}>g</Type>
-                </View>
-                <Type kind="small">total carbs logged</Type>
-              </View>
-              {settings.goal !== null && <Ring progress={grams / settings.goal} />}
-            </View>
-            {settings.goal !== null && (
-              <View style={{ marginTop: 10, gap: 6 }}>
-                <Type kind="small">
-                  Your reference: {settings.goal} g · {Math.round((grams / settings.goal) * 100)}%
-                  logged
-                </Type>
-              </View>
-            )}
-            <View style={s.todayFoot}>
-              <Type kind="small">
-                {today.length} {today.length === 1 ? 'meal' : 'meals'} saved
-              </Type>
-              <TextLink label="Your rhythm" onPress={() => router.navigate('/rhythm')} />
-            </View>
-          </View>
+        <View style={{ flex: split ? 1 : undefined, gap: 16, marginTop: split ? 0 : 8 }}>
+          {todayCard}
           {!!repeats.length && (
-            <View style={s.todayCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Repeat2 size={16} color={c.purple} />
-                <Type style={{ fontFamily: f.bold, fontSize: 15 }}>Having it again?</Type>
+            <Card>
+              <SectionTitle
+                title="Having it again?"
+                subtitle="One tap logs a past meal with your corrections."
+              />
+              <View style={{ marginTop: 8 }}>
+                {repeats.map((meal) => (
+                  <PressableScale
+                    key={meal.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Log ${meal.title} again`}
+                    onPress={() => again(meal)}
+                    scaleTo={0.98}
+                    style={s.repeat}
+                    hoverStyle={{ backgroundColor: c.surfaceAlt }}
+                  >
+                    <View style={s.repeatIcon}>
+                      <Repeat2 size={15} color={c.purpleDeep} strokeWidth={2.2} />
+                    </View>
+                    <Type numberOfLines={1} style={{ flex: 1, fontFamily: f.medium, fontSize: 14 }}>
+                      {meal.title}
+                    </Type>
+                    <Type style={{ fontFamily: f.displayBold, fontSize: 15 }}>
+                      {totalCarbs(meal.items)}
+                      <Type style={{ fontSize: 11, color: c.muted }}> g</Type>
+                    </Type>
+                    <Plus size={16} color={c.purple} strokeWidth={2.4} />
+                  </PressableScale>
+                ))}
               </View>
-              <Type kind="small" style={{ marginBottom: 8 }}>
-                Log a past meal in one tap, with your own corrections.
-              </Type>
-              {repeats.map((meal) => (
-                <PressableScale
-                  key={meal.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Log ${meal.title} again`}
-                  onPress={() => again(meal)}
-                  scaleTo={0.98}
-                  style={s.repeat}
-                  hoverStyle={{ backgroundColor: c.bg }}
-                >
-                  <Type numberOfLines={1} style={{ flex: 1, fontFamily: f.medium, fontSize: 14 }}>
-                    {meal.title}
-                  </Type>
-                  <Type style={{ fontFamily: f.bold, fontSize: 14, color: c.purple }}>
-                    {totalCarbs(meal.items)} g
-                  </Type>
-                  <Plus size={16} color={c.purple} />
-                </PressableScale>
-              ))}
-            </View>
+            </Card>
           )}
         </View>
       </View>
-      <View style={[s.sectionRow, { marginTop: 25, marginBottom: 14 }]}>
-        <View style={{ flex: 1 }}>
-          <Type style={{ fontFamily: f.displayBold, fontSize: 22 }}>
-            {meals.length ? 'Your little food memories' : 'Every bite has a little story'}
-          </Type>
-          <Type kind="small" style={{ marginTop: 2 }}>
-            {meals.length
-              ? 'The moments you chose to keep.'
-              : 'A few sample memories. Your own story starts with a snap.'}
-          </Type>
-        </View>
-        <TextLink
-          label={meals.length ? 'View all' : 'Open memories'}
-          onPress={() => router.navigate('/memories')}
-        />
-      </View>
-      <View style={{ flexDirection: mobile ? 'column' : 'row', gap: 17 }}>
-        {meals.length
-          ? meals
-              .slice(0, 3)
-              .map((meal) => (
-                <MemoryCard
-                  key={meal.id}
-                  meal={meal}
-                  compact
-                  onPress={() => router.navigate(`/memory/${meal.id}`)}
-                />
-              ))
-          : (['toast', 'berries'] as const).map((kind) => (
-              <MemoryCard key={kind} meal={sampleMeal(kind)} compact onPress={() => demo(kind)} />
-            ))}
-        {!mobile && (
+      <SectionTitle
+        style={{ marginTop: 30, marginBottom: 14 }}
+        title={meals.length ? 'Recent memories' : 'Try a sample memory'}
+        subtitle={
+          meals.length ? 'The moments you chose to keep.' : 'Your own story starts with a snap.'
+        }
+        action={
+          <TextLink
+            label={meals.length ? 'View all' : 'Open memories'}
+            onPress={() => router.navigate('/memories')}
+          />
+        }
+      />
+      {mobile ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 14, paddingRight: 20, paddingBottom: 8 }}
+          style={{ marginHorizontal: -20, paddingHorizontal: 20 }}
+        >
+          {recent.map(({ key, meal, onPress }) => (
+            <MemoryCard key={key} meal={meal} compact onPress={onPress} style={{ width: 250 }} />
+          ))}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Take your first snap"
             onPress={() => router.navigate('/capture')}
-            style={s.addMemory}
+            style={[s.addMemory, { width: 150, height: 190 }]}
           >
             <View style={s.addCircle}>
-              <Plus size={22} color={c.purple} />
+              <Plus size={22} color={c.white} strokeWidth={2.4} />
             </View>
-            <Type style={{ fontFamily: f.bold, fontSize: 14, marginTop: 15 }}>
-              Make a little memory
+            <Type style={{ fontFamily: f.bold, fontSize: 13, marginTop: 12, textAlign: 'center' }}>
+              New snap
             </Type>
-            <Type kind="small" style={{ marginTop: 3 }}>
+          </Pressable>
+        </ScrollView>
+      ) : (
+        <View style={{ flexDirection: 'row', gap: 16 }}>
+          {recent.map(({ key, meal, onPress }) => (
+            <MemoryCard key={key} meal={meal} compact onPress={onPress} />
+          ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Take your first snap"
+            onPress={() => router.navigate('/capture')}
+            style={[s.addMemory, { flex: 1, minHeight: 190 }]}
+          >
+            <View style={s.addCircle}>
+              <Plus size={22} color={c.white} strokeWidth={2.4} />
+            </View>
+            <Type style={{ fontFamily: f.bold, fontSize: 14, marginTop: 14 }}>
+              Make a new memory
+            </Type>
+            <Type kind="caption" style={{ marginTop: 3 }}>
               Something delicious awaits.
             </Type>
-            <ArrowRight size={18} color={c.purple} style={{ marginTop: 13 }} />
           </Pressable>
-        )}
-      </View>
+        </View>
+      )}
     </>
   );
 }
+
 const s = StyleSheet.create({
   greetingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: 12,
     marginBottom: 18,
+    marginTop: 6,
   },
-  greeting: { fontFamily: f.displayBold, fontSize: 23, lineHeight: 30, flexShrink: 1 },
-  greenDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#AEC477' },
-  cameraCard: {
-    backgroundColor: c.white,
-    borderRadius: 26,
-    padding: 6,
-    borderWidth: 1,
-    borderColor: c.line,
+  greeting: { fontFamily: f.displayBold, fontSize: 28, lineHeight: 33, letterSpacing: -1 },
+  preview: {
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    backgroundColor: c.night,
+    ...shadow.card,
   },
-  preview: { borderRadius: 20, overflow: 'hidden', backgroundColor: c.lavender },
   previewTop: {
     position: 'absolute',
-    top: 18,
-    left: 19,
-    right: 19,
+    top: 16,
+    left: 16,
+    right: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  previewBadge: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  frame: { position: 'absolute', top: 73, bottom: 155, left: 57, right: 57 },
-  corner: { position: 'absolute', width: 26, height: 26, borderColor: 'rgba(255,255,255,0.85)' },
-  previewBottom: { position: 'absolute', bottom: 120, left: 20, right: 20 },
+  previewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(10,8,20,0.42)',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+  },
+  previewBadgeText: { fontSize: 10, color: c.white, fontFamily: f.bold, letterSpacing: 1.4 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.5)' },
+  frame: { position: 'absolute', top: 76, bottom: 170, left: 60, right: 60 },
+  corner: { position: 'absolute', width: 30, height: 30, borderColor: 'rgba(255,255,255,0.9)' },
+  previewHint: { position: 'absolute', bottom: 112, left: 22, right: 22, gap: 3 },
+  previewTitle: {
+    fontFamily: f.displayBold,
+    fontSize: 24,
+    lineHeight: 28,
+    letterSpacing: -0.8,
+    color: c.white,
+  },
+  previewSub: { color: 'rgba(255,255,255,0.72)', fontSize: 13, lineHeight: 18 },
   cameraControls: {
     position: 'absolute',
     bottom: 18,
@@ -502,104 +541,110 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: 14,
-    paddingHorizontal: 17,
-  },
-  controlButton: {
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    width: 50,
-    height: 50,
-    borderRadius: 17,
+    paddingHorizontal: 24,
   },
   shutterOuter: {
-    width: 86,
-    height: 86,
+    width: 82,
+    height: 82,
     padding: 5,
-    borderRadius: 43,
-    borderWidth: 1.5,
-    borderColor: c.white,
+    borderRadius: 41,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.85)',
   },
   shutterInner: {
     flex: 1,
-    backgroundColor: c.purple,
-    borderRadius: 38,
+    backgroundColor: c.white,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sampleLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    marginTop: 13,
-    flexWrap: 'wrap',
-  },
-  quick: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' },
+  quick: { flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' },
   quickButton: {
     flexGrow: 1,
-    flexBasis: 90,
+    flexBasis: 80,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    minHeight: 48,
+    minHeight: 46,
     paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: c.line,
+    borderRadius: radius.pill,
     backgroundColor: c.white,
+    ...shadow.soft,
   },
   quickText: { fontFamily: f.bold, fontSize: 13, color: c.ink },
+  today: {
+    borderRadius: radius.lg,
+    padding: 22,
+    overflow: 'hidden',
+    ...shadow.card,
+  },
+  glow: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    right: -70,
+    top: -90,
+    backgroundColor: 'rgba(107,78,246,0.45)',
+  },
+  todayValue: {
+    fontFamily: f.displayBold,
+    fontSize: 56,
+    lineHeight: 62,
+    letterSpacing: -2.6,
+    color: c.white,
+  },
+  todayFoot: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  todayLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+  },
   repeat: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    minHeight: 46,
-    paddingHorizontal: 10,
-    borderRadius: 13,
-    borderTopWidth: 1,
-    borderTopColor: c.line,
-  },
-  sectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 12,
+    minHeight: 52,
+    paddingHorizontal: 8,
+    marginHorizontal: -8,
+    borderRadius: radius.md,
   },
-  todayCard: {
-    backgroundColor: c.white,
-    borderRadius: 23,
-    padding: 23,
-    borderWidth: 1,
-    borderColor: c.line,
-  },
-  todayFoot: {
-    borderTopWidth: 1,
-    borderTopColor: c.line,
-    marginTop: 21,
-    paddingTop: 8,
-    flexDirection: 'row',
+  repeatIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.lavender,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
   addMemory: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: '#DCD4EA',
-    borderStyle: 'dashed',
-    borderRadius: 21,
-    backgroundColor: '#F4F0FA',
-    minHeight: 212,
+    borderRadius: radius.lg,
+    backgroundColor: c.lavender,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 18,
   },
   addCircle: {
-    width: 43,
-    height: 43,
-    borderRadius: 16,
-    backgroundColor: '#E8DFF8',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: c.purple,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadow.purple,
   },
 });

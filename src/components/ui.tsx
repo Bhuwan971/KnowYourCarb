@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -13,24 +13,31 @@ import {
   StyleProp,
   TextStyle,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { LucideIcon } from 'lucide-react-native';
-import { colors as c, fonts as f } from '../lib/theme';
+import { colors as c, fonts as f, gradients, radius, shadow } from '../lib/theme';
 import { samplePhoto } from '../lib/samples';
 import { PressableScale } from './PressableScale';
+
+type Kind = 'display' | 'title' | 'heading' | 'body' | 'label' | 'small' | 'eyebrow' | 'caption';
 export function Type({
   children,
   style,
   kind = 'body',
   ...rest
-}: React.ComponentProps<typeof Text> & { kind?: 'body' | 'title' | 'label' | 'small' }) {
+}: React.ComponentProps<typeof Text> & { kind?: Kind }) {
   return (
     <Text
       {...rest}
       style={[
         styles.text,
+        kind === 'display' && styles.display,
         kind === 'title' && styles.title,
+        kind === 'heading' && styles.heading,
         kind === 'label' && styles.label,
         kind === 'small' && styles.small,
+        kind === 'eyebrow' && styles.eyebrow,
+        kind === 'caption' && styles.caption,
         style,
       ]}
     >
@@ -38,11 +45,13 @@ export function Type({
     </Text>
   );
 }
+
 export function Button({
   label,
   onPress,
   icon: Icon,
   variant = 'primary',
+  size = 'md',
   disabled = false,
   busy = false,
   style,
@@ -50,49 +59,89 @@ export function Button({
   label: string;
   onPress: () => void;
   icon?: LucideIcon;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'dark' | 'lime';
+  size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   busy?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const color = variant === 'primary' ? c.white : variant === 'danger' ? c.error : c.ink;
+  const color =
+    variant === 'primary' || variant === 'dark'
+      ? c.white
+      : variant === 'danger'
+        ? c.error
+        : variant === 'secondary'
+          ? c.purpleDeep
+          : variant === 'lime'
+            ? c.limeInk
+            : c.ink;
+  const off = disabled || busy;
+  const height = size === 'lg' ? 58 : size === 'sm' ? 40 : 50;
+  const content = (
+    <>
+      {busy ? (
+        <ActivityIndicator size="small" color={color} />
+      ) : Icon ? (
+        <Icon size={size === 'sm' ? 15 : 18} color={color} strokeWidth={2} />
+      ) : null}
+      <Type
+        style={{
+          fontFamily: f.bold,
+          color,
+          fontSize: size === 'lg' ? 16 : size === 'sm' ? 13 : 15,
+          lineHeight: 20,
+        }}
+      >
+        {label}
+      </Type>
+    </>
+  );
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: disabled || busy, busy }}
+      accessibilityState={{ disabled: off, busy }}
       onPress={onPress}
-      disabled={disabled || busy}
-      hoverStyle={{ opacity: 0.88 }}
+      disabled={off}
+      hoverStyle={{ opacity: 0.9 }}
       style={[
         styles.button,
-        variant === 'primary' && { backgroundColor: c.purple },
+        { minHeight: height, paddingHorizontal: size === 'sm' ? 14 : 22 },
+        variant === 'primary' && [{ backgroundColor: c.purple }, !off && shadow.purple],
         variant === 'secondary' && { backgroundColor: c.lavender },
-        variant === 'ghost' && {
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderColor: c.line,
-        },
+        variant === 'ghost' && { backgroundColor: c.white, ...shadow.soft },
         variant === 'danger' && { backgroundColor: c.pink },
-        (disabled || busy) && { opacity: 0.45 },
+        variant === 'dark' && { backgroundColor: c.ink },
+        variant === 'lime' && [{ backgroundColor: c.lime }, !off && shadow.lime],
+        off && { opacity: 0.45 },
         style,
       ]}
     >
-      {busy ? (
-        <ActivityIndicator size="small" color={color} />
-      ) : Icon ? (
-        <Icon size={18} color={color} strokeWidth={1.8} />
-      ) : null}
-      <Type style={{ fontFamily: f.bold, color, fontSize: 14 }}>{label}</Type>
+      {variant === 'primary' ? (
+        <>
+          <LinearGradient
+            colors={[...gradients.purple]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[StyleSheet.absoluteFill, { borderRadius: radius.pill }]}
+          />
+          {content}
+        </>
+      ) : (
+        content
+      )}
     </PressableScale>
   );
 }
+
 export function IconButton({
   icon: Icon,
   label,
   onPress,
   style,
-  color = c.ink,
+  color,
+  variant = 'surface',
+  size = 44,
   disabled = false,
 }: {
   icon: LucideIcon;
@@ -100,8 +149,17 @@ export function IconButton({
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
   color?: string;
+  variant?: 'surface' | 'tonal' | 'dark' | 'glass' | 'plain' | 'primary';
+  size?: number;
   disabled?: boolean;
 }) {
+  const tint =
+    color ??
+    (variant === 'dark' || variant === 'glass' || variant === 'primary'
+      ? c.white
+      : variant === 'tonal'
+        ? c.purpleDeep
+        : c.ink);
   return (
     <PressableScale
       accessibilityRole="button"
@@ -109,50 +167,92 @@ export function IconButton({
       disabled={disabled}
       onPress={onPress}
       hitSlop={6}
-      scaleTo={0.92}
-      hoverStyle={{ backgroundColor: c.lavender }}
-      style={[styles.iconButton, disabled && { opacity: 0.4 }, style]}
+      scaleTo={0.9}
+      hoverStyle={{ opacity: 0.85 }}
+      style={[
+        styles.iconButton,
+        { width: size, height: size, borderRadius: size / 2 },
+        variant === 'surface' && { backgroundColor: c.white, ...shadow.soft },
+        variant === 'tonal' && { backgroundColor: c.lavender },
+        variant === 'dark' && { backgroundColor: 'rgba(255,255,255,0.12)' },
+        variant === 'glass' && { backgroundColor: 'rgba(255,255,255,0.22)' },
+        variant === 'primary' && { backgroundColor: c.purple, ...shadow.purple },
+        variant === 'plain' && { backgroundColor: 'transparent' },
+        disabled && { opacity: 0.4 },
+        style,
+      ]}
     >
-      <Icon size={21} color={color} strokeWidth={1.7} />
+      <Icon size={Math.round(size * 0.46)} color={tint} strokeWidth={1.9} />
     </PressableScale>
   );
 }
+
 export function Chip({
   children,
   color = c.lavender,
-  textColor = c.purple,
+  textColor = c.purpleDeep,
   icon: Icon,
+  style,
 }: {
   children: React.ReactNode;
   color?: string;
   textColor?: string;
   icon?: LucideIcon;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[styles.chip, { backgroundColor: color }]}>
-      {Icon && <Icon size={13} color={textColor} />}
-      <Type style={{ color: textColor, fontFamily: f.medium, fontSize: 11 }}>{children}</Type>
+    <View style={[styles.chip, { backgroundColor: color }, style]}>
+      {Icon && <Icon size={12} color={textColor} strokeWidth={2.2} />}
+      <Type
+        style={{
+          color: textColor,
+          fontFamily: f.bold,
+          fontSize: 11,
+          lineHeight: 14,
+          letterSpacing: 0.3,
+        }}
+      >
+        {children}
+      </Type>
     </View>
   );
 }
+
 export function Field({
   label,
   style,
   inline = false,
+  hint,
   ...props
-}: TextInputProps & { label: string; inline?: boolean; style?: StyleProp<TextStyle> }) {
+}: TextInputProps & {
+  label: string;
+  inline?: boolean;
+  hint?: string;
+  style?: StyleProp<TextStyle>;
+}) {
+  const [focused, setFocused] = useState(false);
   return (
-    <View style={[{ gap: 8 }, inline && { flex: 1 }]}>
+    <View style={[{ gap: 7 }, inline && { flex: 1 }]}>
       <Type kind="label">{label}</Type>
       <TextInput
         accessibilityLabel={label}
-        placeholderTextColor="#A49EAF"
+        placeholderTextColor={c.faint}
         {...props}
-        style={[styles.input, style]}
+        onFocus={(e) => {
+          setFocused(true);
+          props.onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          props.onBlur?.(e);
+        }}
+        style={[styles.input, focused && styles.inputFocused, style]}
       />
+      {hint ? <Type kind="caption">{hint}</Type> : null}
     </View>
   );
 }
+
 export function FoodPhoto({
   uri,
   source,
@@ -167,15 +267,15 @@ export function FoodPhoto({
   const failed = failedSource !== null && failedSource === currentSource;
   if ((!uri && !source) || failed)
     return (
-      <View
-        style={[
-          { backgroundColor: c.lavender, alignItems: 'center', justifyContent: 'center' },
-          style,
-        ]}
+      <LinearGradient
+        colors={[...gradients.purpleSoft]}
+        style={[{ alignItems: 'center', justifyContent: 'center', gap: 4 }, style]}
       >
-        <Type style={{ fontSize: 34 }}>✧</Type>
-        <Type kind="small">{failed ? 'Photo unavailable' : 'A little food memory'}</Type>
-      </View>
+        <Type style={{ fontSize: 30, color: c.purple }}>✧</Type>
+        <Type kind="caption" style={{ color: c.purpleDeep }}>
+          {failed ? 'Photo unavailable' : 'No photo yet'}
+        </Type>
+      </LinearGradient>
     );
   return (
     <Image
@@ -187,46 +287,196 @@ export function FoodPhoto({
     />
   );
 }
-export const styles = StyleSheet.create({
+
+// A floating surface. No hairline borders anywhere: depth comes from shadow and tone.
+export function Card({
+  children,
+  style,
+  tone = 'surface',
+  padding = 20,
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  tone?: 'surface' | 'tonal' | 'dark' | 'flat';
+  padding?: number;
+}) {
+  return (
+    <View
+      style={[
+        styles.card,
+        { padding },
+        tone === 'surface' && { backgroundColor: c.white, ...shadow.card },
+        tone === 'tonal' && { backgroundColor: c.lavender },
+        tone === 'dark' && { backgroundColor: c.night },
+        tone === 'flat' && { backgroundColor: c.surfaceAlt },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+export function SectionTitle({
+  title,
+  subtitle,
+  action,
+  style,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[styles.sectionTitle, style]}>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Type kind="heading">{title}</Type>
+        {subtitle ? <Type kind="small">{subtitle}</Type> : null}
+      </View>
+      {action}
+    </View>
+  );
+}
+
+// A compact pill switcher for a handful of mutually exclusive options.
+export function Segmented<K extends string>({
+  options,
+  value,
+  onChange,
+  label,
+  dark = false,
+}: {
+  options: { key: K; label: string; icon?: LucideIcon }[];
+  value: K;
+  onChange: (key: K) => void;
+  label: string;
+  dark?: boolean;
+}) {
+  return (
+    <View
+      accessibilityRole="tablist"
+      accessibilityLabel={label}
+      style={[styles.segmented, dark && { backgroundColor: 'rgba(255,255,255,0.1)' }]}
+    >
+      {options.map(({ key, label: text, icon: Icon }) => {
+        const active = key === value;
+        return (
+          <PressableScale
+            key={key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={`${text} mode`}
+            onPress={() => onChange(key)}
+            scaleTo={0.96}
+            style={[
+              styles.segment,
+              active && { backgroundColor: dark ? c.lime : c.white, ...shadow.soft },
+            ]}
+          >
+            {Icon && (
+              <Icon
+                size={14}
+                strokeWidth={2.2}
+                color={
+                  active ? (dark ? c.limeInk : c.ink) : dark ? 'rgba(255,255,255,0.7)' : c.muted
+                }
+              />
+            )}
+            <Type
+              style={{
+                fontSize: 13,
+                fontFamily: f.bold,
+                color: active
+                  ? dark
+                    ? c.limeInk
+                    : c.ink
+                  : dark
+                    ? 'rgba(255,255,255,0.7)'
+                    : c.muted,
+              }}
+            >
+              {text}
+            </Type>
+          </PressableScale>
+        );
+      })}
+    </View>
+  );
+}
+
+export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
+  return <View style={[{ height: 1, backgroundColor: c.line }, style]} />;
+}
+
+const styles = StyleSheet.create({
   text: { fontFamily: f.regular, color: c.ink, fontSize: 15, lineHeight: 23 },
-  title: { fontFamily: f.displayBold, fontSize: 30, lineHeight: 36, letterSpacing: -1.1 },
-  label: { fontFamily: f.bold, fontSize: 12, lineHeight: 18 },
-  small: { color: c.muted, fontSize: 12, lineHeight: 19 },
+  display: { fontFamily: f.displayBold, fontSize: 40, lineHeight: 44, letterSpacing: -1.8 },
+  title: { fontFamily: f.displayBold, fontSize: 30, lineHeight: 35, letterSpacing: -1.2 },
+  heading: { fontFamily: f.displayBold, fontSize: 20, lineHeight: 25, letterSpacing: -0.5 },
+  label: { fontFamily: f.bold, fontSize: 12, lineHeight: 16, color: c.inkSoft },
+  small: { color: c.muted, fontSize: 13, lineHeight: 19 },
+  caption: { color: c.muted, fontSize: 12, lineHeight: 17 },
+  eyebrow: {
+    fontFamily: f.bold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.6,
+    color: c.purple,
+    textTransform: 'uppercase',
+  },
   button: {
-    minHeight: 48,
-    paddingHorizontal: 20,
-    borderRadius: 16,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 9,
+    overflow: 'hidden',
   },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: c.white,
-  },
+  iconButton: { justifyContent: 'center', alignItems: 'center' },
   chip: {
-    borderRadius: 20,
-    paddingHorizontal: 11,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    alignSelf: 'flex-start',
   },
   input: {
-    minHeight: 49,
-    backgroundColor: c.white,
-    borderWidth: 1,
-    borderColor: c.line,
-    borderRadius: 13,
-    paddingHorizontal: 13,
-    paddingVertical: 11,
+    minHeight: 52,
+    backgroundColor: c.surfaceAlt,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    borderRadius: radius.md,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
     fontFamily: f.medium,
     fontSize: 15,
     color: c.ink,
+  },
+  inputFocused: { backgroundColor: c.white, borderColor: c.purple },
+  card: { borderRadius: radius.lg },
+  sectionTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: c.lavender,
+    borderRadius: radius.pill,
+    padding: 4,
+    gap: 2,
+    alignSelf: 'center',
+  },
+  segment: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    minHeight: 38,
+    borderRadius: radius.pill,
   },
 });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDown } from 'lucide-react-native';
 import {
   Meal,
@@ -11,8 +12,8 @@ import {
   totalCarbsRange,
   totalNutrient,
 } from '../../lib/model';
-import { colors as c, fonts as f } from '../../lib/theme';
-import { Chip, FoodPhoto, Type } from '../ui';
+import { colors as c, fonts as f, gradients, radius, shadow } from '../../lib/theme';
+import { Card, Chip, FoodPhoto, Type } from '../ui';
 import { Mascot } from '../Mascot';
 import { PressableScale } from '../PressableScale';
 import { confidenceMeta, ConfidencePill, CountUp, RangeBar, sourceOf } from '../kit';
@@ -26,8 +27,8 @@ export function MealHero({ meal, revealed }: { meal: Meal; revealed: boolean }) 
   const estimated = meal.source === 'ai';
   const sticker = (
     <View style={s.sticker}>
-      <Type kind="small" style={s.stickerLabel}>
-        {estimated ? 'ESTIMATED CARBS' : 'TOTAL CARBS'}
+      <Type kind="eyebrow" style={{ color: c.muted, fontSize: 10 }}>
+        {estimated ? 'Estimated carbs' : 'Total carbs'}
       </Type>
       <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
         <CountUp
@@ -40,9 +41,9 @@ export function MealHero({ meal, revealed }: { meal: Meal; revealed: boolean }) 
         <Type style={s.totalUnit}> g</Type>
       </View>
       {range && range.max - range.min >= 1 && Number.isFinite(total) && (
-        <View style={{ gap: 3, minWidth: 150 }}>
+        <View style={{ gap: 2, minWidth: 150 }}>
           <RangeBar min={range.min} max={range.max} value={total} scale={range.max * 1.15} />
-          <Type kind="small" style={{ fontSize: 11 }}>
+          <Type kind="caption" style={{ fontSize: 11 }}>
             likely {range.min}–{range.max} g
           </Type>
         </View>
@@ -52,11 +53,15 @@ export function MealHero({ meal, revealed }: { meal: Meal; revealed: boolean }) 
   return (
     <View style={{ gap: 14 }}>
       {meal.photo ? (
-        <View style={[s.photo, { height: wide ? 420 : 300 }]}>
+        <View style={[s.photo, { height: wide ? 420 : 310 }]}>
           <FoodPhoto uri={meal.photo} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={[...gradients.photoBottom]}
+            style={[StyleSheet.absoluteFill, { top: '45%' }]}
+          />
           <View style={s.photoChip}>
-            <Chip color="rgba(255,255,255,0.95)" textColor={c.ink}>
-              {meal.mealType}
+            <Chip color="rgba(255,255,255,0.94)" textColor={c.ink}>
+              {meal.mealType.toUpperCase()}
             </Chip>
           </View>
           <View style={s.stickerSpot}>{sticker}</View>
@@ -67,24 +72,29 @@ export function MealHero({ meal, revealed }: { meal: Meal; revealed: boolean }) 
           <View style={{ flex: 1 }}>{sticker}</View>
         </View>
       )}
-      <View style={s.macros}>
+      <Card padding={0} style={s.macros}>
         {[
           { label: 'Calories', value: calories, unit: 'kcal', decimals: 0 },
           { label: 'Protein', value: totalNutrient(meal.items, 'protein'), unit: 'g', decimals: 1 },
           { label: 'Fat', value: totalNutrient(meal.items, 'fat'), unit: 'g', decimals: 1 },
           { label: 'Fiber', value: totalNutrient(meal.items, 'fiber'), unit: 'g', decimals: 1 },
-        ].map((macro) => (
-          <View key={macro.label} style={{ flex: 1, gap: 1 }}>
-            <Type kind="small" style={{ fontSize: 11 }}>
+        ].map((macro, i) => (
+          <View key={macro.label} style={[s.macro, i > 0 && s.macroDivider]}>
+            <Type kind="caption" style={{ fontSize: 11 }}>
               {macro.label}
             </Type>
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
               <CountUp value={macro.value} decimals={macro.decimals} style={s.macroValue} />
-              {macro.value !== null && <Type kind="small"> {macro.unit}</Type>}
+              {macro.value !== null && (
+                <Type kind="caption" style={{ fontSize: 11 }}>
+                  {' '}
+                  {macro.unit}
+                </Type>
+              )}
             </View>
           </View>
         ))}
-      </View>
+      </Card>
       {confidence && <HowWeKnow meal={meal} level={confidence} />}
     </View>
   );
@@ -109,7 +119,7 @@ function HowWeKnow({
     .filter(Boolean)
     .join(' · ');
   return (
-    <View style={s.how}>
+    <Card padding={14}>
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel="How this estimate was made"
@@ -119,41 +129,42 @@ function HowWeKnow({
         style={s.howHead}
       >
         <ConfidencePill level={level} />
-        <Type kind="small" style={{ flex: 1 }} numberOfLines={1}>
+        <Type kind="caption" style={{ flex: 1 }} numberOfLines={1}>
           {summary}
         </Type>
         <ChevronDown
           size={16}
           color={c.muted}
+          strokeWidth={2.4}
           style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}
         />
       </PressableScale>
       {open && (
-        <Animated.View entering={FadeIn.duration(160)} style={{ gap: 10, paddingTop: 4 }}>
+        <Animated.View entering={FadeIn.duration(160)} style={{ gap: 12, paddingTop: 12 }}>
           <Type style={{ fontSize: 13, lineHeight: 20 }}>{confidenceMeta[level].explain}</Type>
           {meal.items.map((item) => (
             <View key={item.id} style={{ gap: 2 }}>
               <Type style={{ fontSize: 13, fontFamily: f.bold }}>
                 {item.name || 'Unnamed food'}
               </Type>
-              <Type kind="small">{sourceOf(item).detail}</Type>
+              <Type kind="caption">{sourceOf(item).detail}</Type>
             </View>
           ))}
-          {meal.uncertainty && <Type kind="small">{meal.uncertainty}</Type>}
-          <Type kind="small">
+          {meal.uncertainty && <Type kind="caption">{meal.uncertainty}</Type>}
+          <Type kind="caption">
             Nutrition for matched foods comes from USDA FoodData Central; the amount is still read
             from your photo, so ranges are assumptions, not measured accuracy. Sugar and fiber are
             included in total carbs. — means unknown.
           </Type>
-          <View style={{ gap: 6 }}>
+          <View style={s.nutrients}>
             {nutrientFields
               .filter(({ key }) => !['protein', 'fat', 'fiber'].includes(key))
               .map(({ key, label, unit }) => {
                 const value = totalNutrient(meal.items, key);
                 return (
                   <View key={key} style={s.nutrient}>
-                    <Type style={{ fontSize: 13 }}>{label}</Type>
-                    <Type style={{ fontSize: 13 }}>
+                    <Type style={{ fontSize: 13, color: c.inkSoft }}>{label}</Type>
+                    <Type style={{ fontSize: 13, fontFamily: f.bold }}>
                       {value === null ? '—' : `${value} ${unit}`}
                     </Type>
                   </View>
@@ -162,50 +173,43 @@ function HowWeKnow({
           </View>
         </Animated.View>
       )}
-    </View>
+    </Card>
   );
 }
 
 const s = StyleSheet.create({
-  photo: { borderRadius: 28, overflow: 'hidden', backgroundColor: c.lavender },
-  photoChip: { position: 'absolute', top: 18, left: 18 },
+  photo: {
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    backgroundColor: c.lavender,
+    ...shadow.card,
+  },
+  photoChip: { position: 'absolute', top: 16, left: 16 },
   stickerSpot: { position: 'absolute', left: 16, right: 16, bottom: 16, alignItems: 'flex-end' },
   sticker: {
-    padding: 15,
-    paddingHorizontal: 17,
-    borderRadius: 22,
-    backgroundColor: '#FAF8F0',
-    boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+    padding: 14,
+    paddingHorizontal: 18,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255,255,255,0.96)',
     gap: 2,
     alignSelf: 'flex-start',
+    ...shadow.float,
   },
-  stickerLabel: { fontSize: 10, letterSpacing: 1.3, fontFamily: f.bold, lineHeight: 14 },
-  total: { fontFamily: f.displayBold, fontSize: 46, lineHeight: 52, letterSpacing: -1.6 },
-  totalUnit: { fontFamily: f.display, fontSize: 21, color: c.muted },
+  total: { fontFamily: f.displayBold, fontSize: 46, lineHeight: 52, letterSpacing: -2 },
+  totalUnit: { fontFamily: f.display, fontSize: 20, color: c.muted },
   plain: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
     padding: 18,
-    borderRadius: 26,
+    borderRadius: radius.xl,
     backgroundColor: c.lavender,
   },
-  macros: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: c.line,
-  },
-  macroValue: { fontFamily: f.bold, fontSize: 18, lineHeight: 24 },
-  how: {
-    padding: 12,
-    borderRadius: 18,
-    backgroundColor: c.white,
-    borderWidth: 1,
-    borderColor: c.line,
-  },
+  macros: { flexDirection: 'row', overflow: 'hidden' },
+  macro: { flex: 1, paddingVertical: 14, paddingHorizontal: 14, gap: 2 },
+  macroDivider: { borderLeftWidth: 1, borderLeftColor: c.line },
+  macroValue: { fontFamily: f.displayBold, fontSize: 18, lineHeight: 23, letterSpacing: -0.4 },
   howHead: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 32 },
-  nutrient: { flexDirection: 'row', justifyContent: 'space-between' },
+  nutrients: { gap: 2, backgroundColor: c.surfaceAlt, borderRadius: radius.md, padding: 12 },
+  nutrient: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
 });

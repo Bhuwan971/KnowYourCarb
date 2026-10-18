@@ -1,20 +1,25 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { Camera, Search, SlidersHorizontal, UtensilsCrossed } from 'lucide-react-native';
+import { Camera, Search, X } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
-import { colors as c, fonts as f } from '../../lib/theme';
+import { colors as c, fonts as f, radius, shadow } from '../../lib/theme';
 import { dailyTotal, localDay, Meal } from '../../lib/model';
 import { PageHeading } from '../../components/Shell';
 import { Button, Chip, Type } from '../../components/ui';
 import { MemoryCard } from '../../components/MemoryCard';
 import { Mascot } from '../../components/Mascot';
+
+const filters = ['All', 'Today', 'This week', 'Samples'] as const;
+type Filter = (typeof filters)[number];
+
 export default function MemoriesScreen() {
   const { meals } = useApp();
   const width = useWindowDimensions().width;
   const columns = width >= 1350 ? 3 : width >= 680 ? 2 : 1;
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('All memories');
+  const [filter, setFilter] = useState<Filter>('All');
+  const [focused, setFocused] = useState(false);
   const now = new Date();
   const oldest = new Date(now);
   oldest.setDate(now.getDate() - 6);
@@ -25,7 +30,7 @@ export default function MemoriesScreen() {
       .includes(search.toLowerCase());
     return (
       matches &&
-      (filter === 'All memories' ||
+      (filter === 'All' ||
         (filter === 'Today' && localDay(meal.createdAt) === localDay(now)) ||
         (filter === 'This week' &&
           new Date(meal.createdAt) >= oldest &&
@@ -47,14 +52,13 @@ export default function MemoriesScreen() {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
-      year: 'numeric',
     });
   };
   return (
     <>
       <PageHeading
-        eyebrow="THE MOMENTS YOU KEEP ✦"
-        title="A little collection of good things."
+        eyebrow="The moments you keep"
+        title="Memories"
         subtitle="Your photos, your portions, your story. All right here."
         action={
           width >= 650 ? (
@@ -63,55 +67,70 @@ export default function MemoriesScreen() {
         }
       />
       <View style={s.tools}>
-        <View style={s.search}>
-          <Search size={18} color={c.muted} />
+        <View style={[s.search, focused && s.searchFocused]}>
+          <Search size={18} color={focused ? c.purple : c.muted} strokeWidth={2.2} />
           <TextInput
             accessibilityLabel="Search memories"
-            placeholder="Find a meal, a food, a little moment…"
-            placeholderTextColor={c.muted}
+            placeholder="Find a meal, a food, a note…"
+            placeholderTextColor={c.faint}
             value={search}
             onChangeText={setSearch}
-            style={{ flex: 1, fontFamily: f.regular, fontSize: 13, color: c.ink, height: 48 }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={{ flex: 1, fontFamily: f.medium, fontSize: 15, color: c.ink, height: 52 }}
           />
-        </View>
-        <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
-          <SlidersHorizontal size={16} color={c.muted} style={{ marginRight: 4 }} />
-          {['All memories', 'Today', 'This week', 'Samples'].map((label) => (
+          {!!search && (
             <Pressable
               accessibilityRole="button"
-              accessibilityState={{ selected: filter === label }}
-              key={label}
-              onPress={() => setFilter(label)}
-              style={[
-                s.filter,
-                filter === label && { backgroundColor: c.lavender, borderColor: '#D5C9EE' },
-              ]}
+              accessibilityLabel="Clear search"
+              onPress={() => setSearch('')}
+              hitSlop={8}
             >
-              <Type
-                style={{
-                  fontFamily: f.medium,
-                  fontSize: 12,
-                  color: filter === label ? c.purple : c.muted,
-                }}
-              >
-                {label}
-              </Type>
+              <X size={16} color={c.muted} />
             </Pressable>
-          ))}
+          )}
+        </View>
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          {filters.map((label) => {
+            const active = filter === label;
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                key={label}
+                onPress={() => setFilter(label)}
+                style={({ pressed }) => [
+                  s.filter,
+                  active && { backgroundColor: c.ink },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Type
+                  style={{
+                    fontFamily: f.bold,
+                    fontSize: 13,
+                    color: active ? c.white : c.inkSoft,
+                  }}
+                >
+                  {label}
+                </Type>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
       {!filtered.length ? (
         <View style={s.empty}>
           <View style={s.emptyCircle}>
-            <Mascot size={125} happy />
+            <Mascot size={120} happy />
           </View>
-          <Chip icon={UtensilsCrossed} color={c.lime} textColor="#5A6E3F">
+          <Chip color={c.limeSoft} textColor={c.limeInk}>
             ROOM FOR SOMETHING GOOD
           </Chip>
-          <Type kind="title" style={{ textAlign: 'center', marginTop: 20 }}>
+          <Type kind="title" style={{ textAlign: 'center', marginTop: 18 }}>
             {meals.length ? 'No little matches yet.' : 'Your first memory starts here.'}
           </Type>
-          <Type style={{ maxWidth: 340, textAlign: 'center', color: c.muted, marginTop: 11 }}>
+          <Type kind="small" style={{ maxWidth: 340, textAlign: 'center', marginTop: 10 }}>
             {meals.length
               ? 'Try another search or filter. Your other memories are still here.'
               : 'Breakfast, that perfect lunch, a snack on the go. Give your next bite a little place to stay.'}
@@ -119,38 +138,36 @@ export default function MemoriesScreen() {
           <Button
             label={meals.length ? 'Show all memories' : 'Take your first snap'}
             icon={meals.length ? undefined : Camera}
+            variant={meals.length ? 'secondary' : 'primary'}
             onPress={() => {
               if (meals.length) {
                 setSearch('');
-                setFilter('All memories');
+                setFilter('All');
               } else router.navigate('/capture');
             }}
-            style={{ marginTop: 25 }}
+            style={{ marginTop: 24 }}
           />
         </View>
       ) : (
-        <View style={{ gap: 28 }}>
+        <View style={{ gap: 30 }}>
           {Array.from(grouped.entries()).map(([date, entries]) => (
             <View key={date}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 15,
-                }}
-              >
-                <Type style={{ fontFamily: f.displayBold, fontSize: 23 }}>{dateTitle(date)}</Type>
-                <Type kind="small">
-                  {entries.length} {entries.length === 1 ? 'memory' : 'memories'} ·{' '}
-                  {dailyTotal(meals, new Date(`${date}T12:00:00`))} g logged
-                </Type>
+              <View style={s.dayRow}>
+                <Type kind="heading">{dateTitle(date)}</Type>
+                <View style={s.dayTotal}>
+                  <Type style={{ fontFamily: f.displayBold, fontSize: 14, color: c.purpleDeep }}>
+                    {dailyTotal(meals, new Date(`${date}T12:00:00`))} g
+                  </Type>
+                  <Type kind="caption" style={{ color: c.purpleDeep }}>
+                    · {entries.length} {entries.length === 1 ? 'memory' : 'memories'}
+                  </Type>
+                </View>
               </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
                 {entries.map((meal) => (
                   <View
                     key={meal.id}
-                    style={{ width: columns === 1 ? '100%' : columns === 2 ? '48%' : '31.8%' }}
+                    style={{ width: columns === 1 ? '100%' : columns === 2 ? '48.5%' : '32%' }}
                   >
                     <MemoryCard meal={meal} onPress={() => router.navigate(`/memory/${meal.id}`)} />
                   </View>
@@ -163,34 +180,53 @@ export default function MemoriesScreen() {
     </>
   );
 }
+
 const s = StyleSheet.create({
-  tools: { gap: 15, marginBottom: 29 },
+  tools: { gap: 14, marginBottom: 28 },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 17,
-    borderWidth: 1,
-    borderColor: c.line,
-    borderRadius: 15,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
     backgroundColor: c.white,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    ...shadow.soft,
   },
+  searchFocused: { borderColor: c.purple },
   filter: {
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingHorizontal: 15,
+    minHeight: 38,
+    justifyContent: 'center',
+    borderRadius: radius.pill,
     backgroundColor: c.white,
-    borderWidth: 1,
-    borderColor: c.line,
+    ...shadow.soft,
   },
-  empty: { paddingVertical: 55, alignItems: 'center' },
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    gap: 10,
+  },
+  dayTotal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: c.lavender,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  empty: { paddingVertical: 50, alignItems: 'center' },
   emptyCircle: {
-    width: 172,
-    height: 172,
-    borderRadius: 86,
-    backgroundColor: '#F0EBFA',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: c.lavender,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 25,
+    marginBottom: 26,
   },
 });

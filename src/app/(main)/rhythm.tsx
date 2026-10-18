@@ -1,13 +1,15 @@
 import React from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { Camera, Heart, Images, Wheat } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Camera, Flame, Images, Wheat } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
 import { dailyTotal, localDay, round, totalCarbs } from '../../lib/model';
-import { colors as c, fonts as f } from '../../lib/theme';
+import { colors as c, fonts as f, gradients, radius, shadow } from '../../lib/theme';
 import { PageHeading, TextLink } from '../../components/Shell';
-import { Button, Chip, Type } from '../../components/ui';
+import { Button, Card, Chip, Type } from '../../components/ui';
 import { Mascot } from '../../components/Mascot';
+
 export default function RhythmScreen() {
   const { meals, settings } = useApp();
   const mobile = useWindowDimensions().width < 650;
@@ -26,71 +28,70 @@ export default function RhythmScreen() {
   );
   const total = round(logged.reduce((sum, meal) => sum + totalCarbs(meal.items), 0));
   const activeDays = days.filter((day) => day.count > 0).length;
+  const average = activeDays ? round(total / activeDays) : 0;
   const max = Math.max(50, ...days.map((d) => d.carbs), settings.goal || 0);
+  const plotHeight = 180;
+  const stats = [
+    { title: 'This week', value: `${total}`, unit: 'g carbs', icon: Wheat, hero: true },
+    { title: 'Per active day', value: `${average}`, unit: 'g avg', icon: Flame, hero: false },
+    {
+      title: 'Meals saved',
+      value: `${logged.length}`,
+      unit: `${activeDays} of 7 days`,
+      icon: Images,
+      hero: false,
+    },
+  ];
   return (
     <>
       <PageHeading
-        eyebrow="YOUR EVERYDAY, A LITTLE CLEARER ✦"
-        title="Find your own little rhythm."
+        eyebrow="Your everyday, a little clearer"
+        title="Your rhythm"
         subtitle="A gentle look at what you’ve logged. Every day is a new day."
       />
-      <View style={{ flexDirection: mobile ? 'column' : 'row', gap: 18, marginBottom: 23 }}>
-        {[
-          {
-            title: 'Carbs logged this week',
-            value: `${total}`,
-            unit: 'g',
-            icon: Wheat,
-            color: c.lavender,
-          },
-          {
-            title: 'Little meals remembered',
-            value: `${logged.length}`,
-            unit: 'snaps',
-            icon: Images,
-            color: c.lime,
-          },
-          {
-            title: 'Days with a little clarity',
-            value: `${activeDays}`,
-            unit: 'of 7',
-            icon: Heart,
-            color: c.pink,
-          },
-        ].map((item) => (
-          <View key={item.title} style={s.stat}>
+      <View style={{ flexDirection: mobile ? 'column' : 'row', gap: 14, marginBottom: 16 }}>
+        {stats.map((item) => (
+          <View key={item.title} style={[s.stat, item.hero && s.statHero]}>
+            {item.hero && (
+              <LinearGradient
+                colors={[...gradients.purple]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
             <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-              <View style={[s.icon, { backgroundColor: item.color }]}>
-                <item.icon size={17} color={c.ink} />
+              <View style={[s.icon, item.hero && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <item.icon size={16} color={item.hero ? c.white : c.purpleDeep} strokeWidth={2.2} />
               </View>
-              <Type kind="small">{item.title}</Type>
+              <Type kind="small" style={item.hero && { color: 'rgba(255,255,255,0.8)' }}>
+                {item.title}
+              </Type>
             </View>
-            <Type
-              style={{ fontFamily: f.displayBold, fontSize: 39, lineHeight: 47, marginTop: 16 }}
-            >
-              {item.value} <Type style={{ fontSize: 16, color: c.muted }}>{item.unit}</Type>
-            </Type>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 14 }}>
+              <Type style={[s.statValue, item.hero && { color: c.white }]}>{item.value}</Type>
+              <Type
+                style={{
+                  fontSize: 13,
+                  fontFamily: f.medium,
+                  color: item.hero ? 'rgba(255,255,255,0.75)' : c.muted,
+                }}
+              >
+                {item.unit}
+              </Type>
+            </View>
           </View>
         ))}
       </View>
-      <View style={s.chart}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-          }}
-        >
-          <View>
-            <Type style={{ fontFamily: f.displayBold, fontSize: 23 }}>
-              Your last seven little days
-            </Type>
-            <Type kind="small" style={{ marginTop: 5 }}>
-              Total carbs logged each day · grams
+      <Card padding={22}>
+        <View style={s.chartHead}>
+          <View style={{ flex: 1 }}>
+            <Type kind="heading">Last seven days</Type>
+            <Type kind="caption" style={{ marginTop: 3 }}>
+              Carbs logged each day, in grams
             </Type>
           </View>
-          <Chip color={c.lime} textColor="#5A6E3F">
+          <Chip color={c.limeSoft} textColor={c.limeInk}>
             ONE DAY AT A TIME
           </Chip>
         </View>
@@ -98,7 +99,7 @@ export default function RhythmScreen() {
           accessibilityLabel={`Daily carb totals: ${days.map((d) => `${d.date.toLocaleDateString([], { weekday: 'long' })} ${d.carbs} grams`).join(', ')}`}
           style={s.plot}
         >
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { bottom: 30 }]}>
             {[0, 1, 2, 3].map((i) => (
               <View
                 key={i}
@@ -106,9 +107,9 @@ export default function RhythmScreen() {
                   position: 'absolute',
                   left: 0,
                   right: 0,
-                  top: `${i * 25}%`,
+                  top: `${i * 33.3}%`,
                   height: 1,
-                  backgroundColor: '#EEEAF2',
+                  backgroundColor: c.line,
                 }}
               />
             ))}
@@ -119,63 +120,63 @@ export default function RhythmScreen() {
                   left: 0,
                   right: 0,
                   bottom: `${(settings.goal / max) * 100}%`,
-                  borderTopWidth: 1,
+                  borderTopWidth: 1.5,
                   borderStyle: 'dashed',
-                  borderColor: '#B9A5DA',
+                  borderColor: c.purpleGlow,
                 }}
               />
             )}
           </View>
-          {days.map((day, i) => (
-            <View key={localDay(day.date)} style={s.day}>
-              <Type
-                style={{
-                  fontFamily: f.bold,
-                  fontSize: 12,
-                  color: day.count ? c.purple : c.muted,
-                  marginBottom: 7,
-                }}
-              >
-                {day.carbs}
-              </Type>
-              <View
-                style={[
-                  s.bar,
-                  {
-                    height: Math.max(5, (day.carbs / max) * 180),
-                    backgroundColor: i === 6 ? c.purple : day.count ? '#CFC0F0' : '#EAE6EF',
-                  },
-                ]}
-              />
-              <Type
-                style={{
-                  fontSize: 12,
-                  color: i === 6 ? c.purple : c.muted,
-                  marginTop: 12,
-                  fontFamily: i === 6 ? f.bold : f.regular,
-                }}
-              >
-                {day.date.toLocaleDateString([], { weekday: 'short' })}
-              </Type>
-            </View>
-          ))}
+          {days.map((day, i) => {
+            const today = i === 6;
+            const h = Math.max(6, (day.carbs / max) * plotHeight);
+            return (
+              <View key={localDay(day.date)} style={s.day}>
+                <Type
+                  style={{
+                    fontFamily: f.bold,
+                    fontSize: 11,
+                    color: day.count ? c.ink : c.faint,
+                    marginBottom: 6,
+                  }}
+                >
+                  {day.carbs}
+                </Type>
+                <View style={[s.bar, { height: h }]}>
+                  {day.count ? (
+                    <LinearGradient
+                      colors={today ? [...gradients.purple] : [c.lavenderDeep, c.lavender]}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  ) : (
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: c.line }]} />
+                  )}
+                </View>
+                <View style={[s.dayLabel, today && { backgroundColor: c.ink }]}>
+                  <Type
+                    style={{
+                      fontSize: 11,
+                      color: today ? c.white : c.muted,
+                      fontFamily: today ? f.bold : f.medium,
+                    }}
+                  >
+                    {day.date.toLocaleDateString([], { weekday: 'short' }).slice(0, 2)}
+                  </Type>
+                </View>
+              </View>
+            );
+          })}
         </View>
-        <Type kind="small" style={{ textAlign: 'center', marginTop: 17 }}>
+        <Type kind="caption" style={{ textAlign: 'center', marginTop: 16 }}>
           Only saved meals are included. Samples and unlogged food aren’t counted.
+          {settings.goal !== null ? ` Dashed line: your reference of ${settings.goal} g.` : ''}
         </Type>
-        {settings.goal !== null && (
-          <Type kind="small" style={{ textAlign: 'center', color: c.purple }}>
-            Dashed line: your personal reference of {settings.goal} g.
-          </Type>
-        )}
-      </View>
+      </Card>
       <View style={s.gentle}>
-        <Mascot size={95} happy />
+        <Mascot size={88} happy />
         <View style={{ flex: 1 }}>
-          <Type style={{ fontFamily: f.displayBold, fontSize: 23 }}>
-            You’re more than a number.
-          </Type>
-          <Type style={{ color: '#756D86', fontSize: 13, marginTop: 6 }}>
+          <Type kind="heading">You’re more than a number.</Type>
+          <Type kind="small" style={{ marginTop: 5 }}>
             Your journal is here to help you notice, remember, and feel a little more informed.
           </Type>
           <TextLink label="Make your space yours" onPress={() => router.navigate('/settings')} />
@@ -192,45 +193,63 @@ export default function RhythmScreen() {
     </>
   );
 }
+
 const s = StyleSheet.create({
   stat: {
     flex: 1,
     backgroundColor: c.white,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: c.line,
-    padding: 23,
+    borderRadius: radius.lg,
+    padding: 20,
+    overflow: 'hidden',
+    ...shadow.card,
   },
-  icon: { width: 33, height: 33, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  chart: {
-    backgroundColor: c.white,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: c.line,
-    padding: 25,
+  statHero: { ...shadow.purple },
+  statValue: { fontFamily: f.displayBold, fontSize: 38, lineHeight: 44, letterSpacing: -1.6 },
+  icon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.lavender,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chartHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
   plot: {
-    height: 239,
-    marginTop: 39,
+    height: 240,
+    marginTop: 26,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingTop: 15,
+    gap: 6,
   },
   day: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' },
   bar: {
-    width: '50%',
-    maxWidth: 61,
-    minWidth: 18,
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
+    width: '58%',
+    maxWidth: 48,
+    minWidth: 16,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  dayLabel: {
+    marginTop: 10,
+    minWidth: 30,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
   },
   gentle: {
-    marginTop: 23,
-    backgroundColor: '#EDE6F8',
-    borderRadius: 22,
-    padding: 25,
+    marginTop: 16,
+    backgroundColor: c.lavender,
+    borderRadius: radius.lg,
+    padding: 22,
     flexDirection: 'row',
-    gap: 23,
+    gap: 20,
     alignItems: 'center',
   },
 });

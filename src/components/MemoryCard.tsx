@@ -1,111 +1,107 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ArrowUpRight, Clock3 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Meal, mealConfidence, mealSourceLabel, totalCarbs, totalCalories } from '../lib/model';
-import { colors as c, fonts as f } from '../lib/theme';
+import { colors as c, fonts as f, gradients, radius, shadow } from '../lib/theme';
 import { FoodPhoto, Type, Chip } from './ui';
 import { PressableScale } from './PressableScale';
 import { confidenceMeta } from './kit';
+
+// A photo-first tile: the picture is the card, everything else floats on top of it.
 export function MemoryCard({
   meal,
   onPress,
   compact = false,
+  style,
 }: {
   meal: Meal;
   onPress: () => void;
   compact?: boolean;
+  style?: React.ComponentProps<typeof View>['style'];
 }) {
   const calories = totalCalories(meal.items);
   const confidence = meal.source === 'sample' ? null : mealConfidence(meal.items);
+  const when =
+    meal.source === 'sample'
+      ? 'Sample · tap to try'
+      : `${new Date(meal.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · ${mealSourceLabel(meal)}`;
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`Open ${meal.title}`}
       onPress={onPress}
       scaleTo={0.98}
-      style={s.card}
-      hoverStyle={{ borderColor: '#D3C6F2' }}
+      style={[s.card, { height: compact ? 190 : 240 }, style]}
+      hoverStyle={{ opacity: 0.94 }}
     >
-      <View style={[s.photo, compact && { height: 148 }]}>
-        <FoodPhoto uri={meal.photo} style={{ width: '100%', height: '100%' }} />
-        <View style={{ position: 'absolute', left: 12, top: 12 }}>
-          <Chip color="rgba(255,255,255,0.92)" textColor={c.ink}>
-            {meal.source === 'sample' ? 'SAMPLE' : meal.mealType.toUpperCase()}
-          </Chip>
-        </View>
+      <FoodPhoto uri={meal.photo} style={StyleSheet.absoluteFill} />
+      <LinearGradient
+        colors={[...gradients.photoTop]}
+        style={[StyleSheet.absoluteFill, { height: 90 }]}
+      />
+      <LinearGradient
+        colors={[...gradients.photoBottom]}
+        style={[StyleSheet.absoluteFill, { top: '40%' }]}
+      />
+      <View style={s.top}>
+        <Chip color="rgba(255,255,255,0.92)" textColor={c.ink}>
+          {meal.source === 'sample' ? 'SAMPLE' : meal.mealType.toUpperCase()}
+        </Chip>
         <View style={s.grams}>
-          <Type style={{ fontFamily: f.displayBold, fontSize: 22, lineHeight: 27 }}>
+          <Type style={s.gramsValue}>
             {totalCarbs(meal.items)}
-            <Type style={{ fontSize: 13 }}>g</Type>
+            <Type style={{ fontSize: 12, fontFamily: f.display, color: c.muted }}>g</Type>
           </Type>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            {confidence && (
-              <View
-                accessibilityLabel={confidenceMeta[confidence].label}
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: confidenceMeta[confidence].ink,
-                }}
-              />
-            )}
-            <Type style={{ fontSize: 9, lineHeight: 13, color: c.muted }}>total carbs</Type>
-          </View>
-          {calories !== null && (
-            <Type style={{ fontSize: 10, lineHeight: 16, color: c.purple }}>{calories} kcal</Type>
+          {confidence && (
+            <View
+              accessibilityLabel={confidenceMeta[confidence].label}
+              style={[s.dot, { backgroundColor: confidenceMeta[confidence].ink }]}
+            />
           )}
         </View>
       </View>
-      <View style={s.info}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 8,
-          }}
-        >
-          <Type numberOfLines={1} style={{ fontFamily: f.bold, fontSize: 14, flex: 1 }}>
-            {meal.title}
-          </Type>
-          <ArrowUpRight size={15} color={c.muted} />
-        </View>
-        <View style={{ flexDirection: 'row', gap: 5, alignItems: 'center', marginTop: 6 }}>
-          <Clock3 size={11} color={c.muted} />
-          <Type kind="small" style={{ fontSize: 11 }}>
-            {meal.source === 'sample'
-              ? 'Try a little memory'
-              : new Date(meal.createdAt).toLocaleTimeString([], {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                })}{' '}
-            · {mealSourceLabel(meal)}
-          </Type>
-        </View>
+      <View style={s.bottom}>
+        <Type numberOfLines={1} style={s.title}>
+          {meal.title}
+        </Type>
+        <Type numberOfLines={1} style={s.meta}>
+          {when}
+          {calories !== null ? ` · ${calories} kcal` : ''}
+        </Type>
       </View>
     </PressableScale>
   );
 }
+
 const s = StyleSheet.create({
   card: {
-    borderRadius: 21,
-    borderColor: c.line,
-    borderWidth: 1,
-    backgroundColor: c.white,
+    borderRadius: radius.lg,
+    backgroundColor: c.lavender,
     overflow: 'hidden',
     flex: 1,
+    ...shadow.card,
   },
-  photo: { height: 210, backgroundColor: c.lavender },
-  grams: {
+  top: {
     position: 'absolute',
-    bottom: 13,
-    right: 13,
-    backgroundColor: c.white,
-    borderRadius: 13,
-    paddingVertical: 7,
-    paddingHorizontal: 13,
-    alignItems: 'center',
+    top: 12,
+    left: 12,
+    right: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
-  info: { padding: 15 },
+  grams: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderRadius: radius.pill,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+  },
+  gramsValue: { fontFamily: f.displayBold, fontSize: 17, lineHeight: 21, letterSpacing: -0.5 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  bottom: { position: 'absolute', left: 16, right: 16, bottom: 14, gap: 2 },
+  title: { fontFamily: f.bold, fontSize: 16, lineHeight: 21, color: c.white },
+  meta: { fontSize: 12, lineHeight: 16, color: 'rgba(255,255,255,0.72)' },
 });

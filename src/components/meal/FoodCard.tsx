@@ -4,7 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { ChevronDown, Info, Minus, Plus, Trash2 } from 'lucide-react-native';
 import { FoodItem, nutrientFields, round, withIdentity, withPortionWeight } from '../../lib/model';
 import { portionChoices, quantityText, selectedChoice } from '../../lib/portions';
-import { colors as c, fonts as f } from '../../lib/theme';
+import { colors as c, fonts as f, radius, shadow } from '../../lib/theme';
 import { Field, IconButton, Type } from '../ui';
 import { PressableScale } from '../PressableScale';
 import { ConfidencePill, CountUp, SourcePill, sourceOf } from '../kit';
@@ -49,11 +49,13 @@ export function Chips({
             accessibilityLabel={option.detail ? `${option.label}, ${option.detail}` : option.label}
             onPress={() => onPick(option.key)}
             style={[s.chip, active && s.chipActive]}
-            hoverStyle={!active && { borderColor: '#D3C5EE' }}
+            hoverStyle={!active && { backgroundColor: c.lavender }}
           >
             <Type style={[s.chipText, active && { color: c.white }]}>{option.label}</Type>
             {option.detail && (
-              <Type style={[s.chipDetail, active && { color: '#E7E0FF' }]}>{option.detail}</Type>
+              <Type style={[s.chipDetail, active && { color: 'rgba(255,255,255,0.72)' }]}>
+                {option.detail}
+              </Type>
             )}
           </PressableScale>
         );
@@ -136,11 +138,14 @@ export function FoodCard({
           <Type kind="small" style={{ fontSize: 11 }}>
             carbs
           </Type>
-          <ChevronDown
-            size={16}
-            color={c.muted}
-            style={{ marginTop: 4, transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}
-          />
+          <View style={[s.chevron, expanded && { backgroundColor: c.ink }]}>
+            <ChevronDown
+              size={14}
+              color={expanded ? c.white : c.muted}
+              strokeWidth={2.4}
+              style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}
+            />
+          </View>
         </View>
       </PressableScale>
       <View style={s.stepRow}>
@@ -154,6 +159,8 @@ export function FoodCard({
               patch({ servings: Math.max(0.25, quarter((item.servings || 1) - 0.25)) });
             }}
             disabled={item.servings <= 0.25}
+            variant="plain"
+            size={34}
             style={s.stepButton}
           />
           <Type style={s.stepValue}>
@@ -166,6 +173,8 @@ export function FoodCard({
               tap();
               patch({ servings: Math.min(100, quarter((item.servings || 1) + 0.25)) });
             }}
+            variant="plain"
+            size={34}
             style={s.stepButton}
           />
         </View>
@@ -210,7 +219,7 @@ export function FoodCard({
           )}
           {!!item.checks?.length && (
             <View style={s.note}>
-              <Info size={15} color={c.butterInk} />
+              <Info size={15} color={c.butterInk} strokeWidth={2.2} />
               <View style={{ flex: 1, gap: 4 }}>
                 {item.checks.map((check) => (
                   <Type key={check} style={{ fontSize: 12, lineHeight: 18, color: c.butterInk }}>
@@ -224,7 +233,7 @@ export function FoodCard({
           <TextInput
             accessibilityLabel={`Food ${index + 1} name`}
             placeholder="Food name"
-            placeholderTextColor={c.muted}
+            placeholderTextColor={c.faint}
             value={item.name}
             onChangeText={(value) => patch({ name: value })}
             maxLength={100}
@@ -298,8 +307,8 @@ export function FoodCard({
             onPress={onRemove}
             style={s.remove}
           >
-            <Trash2 size={15} color={c.error} />
-            <Type style={{ fontSize: 13, color: c.error, fontFamily: f.medium }}>Remove food</Type>
+            <Trash2 size={15} color={c.error} strokeWidth={2.2} />
+            <Type style={{ fontSize: 13, color: c.error, fontFamily: f.bold }}>Remove food</Type>
           </PressableScale>
         </Animated.View>
       )}
@@ -309,61 +318,72 @@ export function FoodCard({
 
 const s = StyleSheet.create({
   card: {
-    borderWidth: 1,
-    borderColor: c.line,
-    borderRadius: 20,
-    padding: 15,
-    gap: 10,
+    borderRadius: radius.lg,
+    padding: 16,
+    gap: 12,
     backgroundColor: c.white,
+    ...shadow.soft,
   },
-  cardOpen: { borderColor: '#D9CEF3', boxShadow: '0 6px 24px rgba(91,67,184,0.08)' },
+  cardOpen: { ...shadow.card },
   head: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  name: { fontFamily: f.bold, fontSize: 15, lineHeight: 21 },
+  name: { fontFamily: f.bold, fontSize: 16, lineHeight: 21, letterSpacing: -0.2 },
   metaRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  carbs: { fontFamily: f.displayBold, fontSize: 26, lineHeight: 31, letterSpacing: -0.8 },
+  carbs: { fontFamily: f.displayBold, fontSize: 26, lineHeight: 31, letterSpacing: -1 },
   unit: { fontFamily: f.display, fontSize: 14, color: c.muted },
+  chevron: {
+    marginTop: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: c.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: c.line,
-    paddingTop: 8,
+    paddingTop: 10,
   },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  stepButton: { width: 34, height: 34, borderWidth: 1, borderColor: c.line, borderRadius: 12 },
-  stepValue: { fontFamily: f.bold, fontSize: 15, minWidth: 34, textAlign: 'center' },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: c.surfaceAlt,
+    borderRadius: radius.pill,
+    padding: 3,
+  },
+  stepButton: { backgroundColor: c.white, ...shadow.soft },
+  stepValue: { fontFamily: f.bold, fontSize: 15, minWidth: 40, textAlign: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   chip: {
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.bg,
-    borderRadius: 14,
-    paddingHorizontal: 12,
+    backgroundColor: c.surfaceAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: 13,
     paddingVertical: 8,
     minHeight: 44,
     justifyContent: 'center',
   },
-  chipActive: { backgroundColor: c.purple, borderColor: c.purple },
+  chipActive: { backgroundColor: c.ink },
   chipText: { fontFamily: f.bold, fontSize: 13, lineHeight: 17, color: c.ink },
   chipDetail: { fontSize: 11, lineHeight: 14, color: c.muted },
   note: {
     flexDirection: 'row',
     gap: 9,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: radius.md,
     backgroundColor: c.butter,
   },
   input: {
     fontFamily: f.bold,
     fontSize: 15,
     color: c.ink,
-    minHeight: 46,
-    borderWidth: 1,
-    borderColor: c.line,
-    borderRadius: 13,
-    paddingHorizontal: 13,
-    backgroundColor: c.white,
+    minHeight: 50,
+    borderRadius: radius.md,
+    paddingHorizontal: 15,
+    backgroundColor: c.surfaceAlt,
   },
   remove: {
     flexDirection: 'row',

@@ -1,10 +1,11 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles } from 'lucide-react-native';
 import { FoodItem, withIdentity } from '../../lib/model';
 import { portionChoices, selectedChoice } from '../../lib/portions';
-import { colors as c, fonts as f } from '../../lib/theme';
+import { colors as c, fonts as f, gradients, radius, shadow } from '../../lib/theme';
 import { Type } from '../ui';
 import { Mascot } from '../Mascot';
 import { PressableScale } from '../PressableScale';
@@ -51,8 +52,10 @@ export function QuickCheck({
       <Animated.View entering={FadeIn.duration(220)} style={[s.card, s.done]}>
         <Mascot size={46} happy />
         <View style={{ flex: 1 }}>
-          <Type style={s.title}>All tightened up ✦</Type>
-          <Type kind="small">Your answers made this estimate a lot more accurate.</Type>
+          <Type style={[s.title, { color: c.limeInk }]}>All tightened up ✦</Type>
+          <Type kind="caption" style={{ color: c.limeInk }}>
+            Your answers made this estimate a lot more accurate.
+          </Type>
         </View>
       </Animated.View>
     ) : null;
@@ -61,9 +64,15 @@ export function QuickCheck({
   const choices = kind === 'portion' ? portionChoices(item) : [];
   return (
     <Animated.View key={key} entering={FadeInDown.duration(220)} style={s.card}>
+      <LinearGradient
+        colors={[...gradients.purpleSoft]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View style={s.header}>
         <View style={s.badge}>
-          <Sparkles size={13} color={c.purpleDeep} />
+          <Sparkles size={12} color={c.white} strokeWidth={2.4} />
           <Type style={s.badgeText}>QUICK CHECK</Type>
         </View>
         <PressableScale
@@ -78,7 +87,7 @@ export function QuickCheck({
       <Type style={s.title}>
         {kind === 'identity' ? 'Which one is it?' : `How much ${item.name.toLowerCase()}?`}
       </Type>
-      <Type kind="small" style={{ marginTop: -4 }}>
+      <Type kind="small" style={{ marginTop: -6, color: c.inkSoft }}>
         {kind === 'identity'
           ? `We read this as “${item.name}”. Look-alikes can differ a lot in carbs.`
           : item.carbsRange
@@ -117,29 +126,28 @@ export function QuickCheck({
 const s = StyleSheet.create({
   card: {
     gap: 12,
-    padding: 17,
-    borderRadius: 22,
+    padding: 18,
+    borderRadius: radius.lg,
     backgroundColor: c.lavender,
-    borderWidth: 1,
-    borderColor: '#DCD0F6',
+    overflow: 'hidden',
+    ...shadow.soft,
   },
   done: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF8D9',
-    borderColor: '#D7EBA8',
+    backgroundColor: c.limeSoft,
   },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: c.white,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 20,
+    backgroundColor: c.purple,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
   },
-  badgeText: { fontSize: 10, letterSpacing: 1.2, fontFamily: f.bold, color: c.purpleDeep },
-  skip: { fontSize: 12, color: c.muted, fontFamily: f.medium, padding: 4 },
-  title: { fontFamily: f.displayBold, fontSize: 19, lineHeight: 25 },
+  badgeText: { fontSize: 10, letterSpacing: 1.2, fontFamily: f.bold, color: c.white },
+  skip: { fontSize: 13, color: c.purpleDeep, fontFamily: f.bold, padding: 4 },
+  title: { fontFamily: f.displayBold, fontSize: 20, lineHeight: 25, letterSpacing: -0.5 },
 });

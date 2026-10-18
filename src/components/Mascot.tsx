@@ -74,13 +74,13 @@ export function Mascot({
 export function LogoMark({ size = 40 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48">
-      <Rect width="48" height="48" rx="16" fill="#7960D9" />
+      <Rect width="48" height="48" rx="16" fill="#6B4EF6" />
       <Path
         d="M14 17H19L21 13H29L31 17H34Q37 17 37 21V32Q37 35 34 35H14Q11 35 11 32V21Q11 17 14 17Z"
-        fill="#E4F4BD"
+        fill="#D9F56A"
       />
-      <Circle cx="24" cy="26" r="6.5" fill="#7960D9" />
-      <Circle cx="22" cy="24" r="2" fill="#E4F4BD" />
+      <Circle cx="24" cy="26" r="6.5" fill="#6B4EF6" />
+      <Circle cx="22" cy="24" r="2" fill="#D9F56A" />
     </Svg>
   );
 }

@@ -3,17 +3,18 @@ import { Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react
 import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Barcode, Camera, Images, SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
 import { usePhotoActions } from '../components/usePhotoActions';
-import { Button, IconButton, Type } from '../components/ui';
+import { Button, IconButton, Segmented, Type } from '../components/ui';
 import { Mascot } from '../components/Mascot';
 import { useApp } from '../state/AppProvider';
-import { colors as c, fonts as f } from '../lib/theme';
+import { colors as c, fonts as f, radius } from '../lib/theme';
 import { analysisUrl, lookupBarcode } from '../lib/analysis';
 import { itemFromProduct, newMeal } from '../lib/model';
-import { PressableScale } from '../components/PressableScale';
+
 export default function CaptureScreen() {
   const [permission, request] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
@@ -93,22 +94,14 @@ export default function CaptureScreen() {
     <SafeAreaView style={s.root}>
       <StatusBar style="light" />
       <View style={s.top}>
-        <IconButton
-          label="Close camera"
-          icon={X}
-          onPress={close}
-          color={c.white}
-          style={s.darkButton}
-        />
-        <Type style={{ color: c.white, fontFamily: f.displayBold, fontSize: 21 }}>
-          a little snap.
-        </Type>
+        <IconButton label="Close camera" icon={X} onPress={close} variant="dark" />
+        <Type style={s.title}>{barcode ? 'Scan a barcode' : 'Snap a meal'}</Type>
         <IconButton
           label={torch ? 'Turn flash off' : 'Turn flash on'}
           icon={torch ? ZapOff : Zap}
           onPress={() => setTorch(!torch)}
-          color={c.white}
-          style={s.darkButton}
+          variant="dark"
+          color={torch ? c.lime : c.white}
           disabled={!permission?.granted || Platform.OS === 'web'}
         />
       </View>
@@ -130,18 +123,63 @@ export default function CaptureScreen() {
                 notify('The camera is unavailable. Import a photo to keep going.');
               }}
             />
+            <LinearGradient
+              pointerEvents="none"
+              colors={[
+                'rgba(10,8,20,0.35)',
+                'rgba(10,8,20,0)',
+                'rgba(10,8,20,0)',
+                'rgba(10,8,20,0.6)',
+              ]}
+              locations={[0, 0.25, 0.7, 1]}
+              style={StyleSheet.absoluteFill}
+            />
             <View pointerEvents="none" style={barcode ? s.barcodeFrame : s.frame}>
               {barcode ? (
                 <View style={[s.laser, lookingUp ? { backgroundColor: c.lime } : null]} />
               ) : (
-                <>
-                  <View style={s.crossH} />
-                  <View style={s.crossV} />
-                </>
+                (['tl', 'tr', 'bl', 'br'] as const).map((corner) => (
+                  <View
+                    key={corner}
+                    style={[
+                      s.corner,
+                      corner === 'tl' && {
+                        left: 0,
+                        top: 0,
+                        borderTopWidth: 3,
+                        borderLeftWidth: 3,
+                        borderTopLeftRadius: 20,
+                      },
+                      corner === 'tr' && {
+                        right: 0,
+                        top: 0,
+                        borderTopWidth: 3,
+                        borderRightWidth: 3,
+                        borderTopRightRadius: 20,
+                      },
+                      corner === 'bl' && {
+                        left: 0,
+                        bottom: 0,
+                        borderBottomWidth: 3,
+                        borderLeftWidth: 3,
+                        borderBottomLeftRadius: 20,
+                      },
+                      corner === 'br' && {
+                        right: 0,
+                        bottom: 0,
+                        borderBottomWidth: 3,
+                        borderRightWidth: 3,
+                        borderBottomRightRadius: 20,
+                      },
+                    ]}
+                  />
+                ))
               )}
             </View>
             <View style={s.hint}>
-              <Type style={{ color: c.white, fontSize: 12, textAlign: 'center' }}>
+              <Type
+                style={{ color: c.white, fontSize: 13, fontFamily: f.medium, textAlign: 'center' }}
+              >
                 {lookingUp
                   ? `Looking up ${lookingUp}…`
                   : barcode
@@ -153,10 +191,17 @@ export default function CaptureScreen() {
         ) : (
           <View style={s.permission}>
             <Mascot size={110} />
-            <Type kind="title" style={{ color: c.white, textAlign: 'center', marginTop: 20 }}>
+            <Type kind="title" style={{ color: c.white, textAlign: 'center', marginTop: 22 }}>
               Your food, in focus.
             </Type>
-            <Type style={{ color: '#BCB4CA', textAlign: 'center', maxWidth: 280, marginTop: 13 }}>
+            <Type
+              style={{
+                color: 'rgba(255,255,255,0.65)',
+                textAlign: 'center',
+                maxWidth: 280,
+                marginTop: 12,
+              }}
+            >
               Let Carbsy use your camera to turn your next bite into a little memory.
             </Type>
             <Button
@@ -164,6 +209,7 @@ export default function CaptureScreen() {
                 permission?.canAskAgain === false ? 'Open camera settings' : 'Let’s open the camera'
               }
               icon={Camera}
+              variant="lime"
               onPress={() => {
                 if (permission?.canAskAgain === false) {
                   if (Platform.OS === 'web')
@@ -174,9 +220,12 @@ export default function CaptureScreen() {
                     notify('Camera permission couldn’t be requested. Try importing a photo.'),
                   );
               }}
-              style={{ marginTop: 23 }}
+              style={{ marginTop: 24 }}
             />
-            <Type kind="small" style={{ marginTop: 16, color: '#AAA1BA' }}>
+            <Type
+              kind="caption"
+              style={{ marginTop: 16, color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}
+            >
               {analysisUrl
                 ? 'Snaps automatically scan with the AI service. Review and edit the results.'
                 : 'Your photos stay on this device. Photo estimates aren’t connected yet.'}
@@ -185,36 +234,20 @@ export default function CaptureScreen() {
         )}
       </View>
       {analysisUrl && (
-        <View style={s.modes} accessibilityRole="tablist">
-          {(
-            [
-              ['photo', 'Photo', Camera],
-              ['barcode', 'Barcode', Barcode],
-            ] as const
-          ).map(([key, label, Icon]) => (
-            <PressableScale
-              key={key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: mode === key }}
-              accessibilityLabel={`${label} mode`}
-              onPress={() => {
-                tap();
-                setMode(key);
-              }}
-              style={[s.mode, mode === key && s.modeActive]}
-            >
-              <Icon size={15} color={mode === key ? c.ink : '#BCB4CA'} />
-              <Type
-                style={{
-                  fontSize: 13,
-                  fontFamily: f.bold,
-                  color: mode === key ? c.ink : '#BCB4CA',
-                }}
-              >
-                {label}
-              </Type>
-            </PressableScale>
-          ))}
+        <View style={{ marginTop: 16 }}>
+          <Segmented
+            label="Capture mode"
+            dark
+            value={mode}
+            onChange={(key) => {
+              tap();
+              setMode(key);
+            }}
+            options={[
+              { key: 'photo', label: 'Photo', icon: Camera },
+              { key: 'barcode', label: 'Barcode', icon: Barcode },
+            ]}
+          />
         </View>
       )}
       {barcode ? (
@@ -222,7 +255,7 @@ export default function CaptureScreen() {
           <TextInput
             accessibilityLabel="Type a barcode"
             placeholder="Or type the barcode digits"
-            placeholderTextColor="#8E86A0"
+            placeholderTextColor="rgba(255,255,255,0.4)"
             keyboardType="number-pad"
             value={typedCode}
             onChangeText={(value) => setTypedCode(value.replace(/\D/g, '').slice(0, 14))}
@@ -231,6 +264,7 @@ export default function CaptureScreen() {
           />
           <Button
             label="Look up"
+            variant="lime"
             onPress={() => void lookup(typedCode)}
             disabled={typedCode.length < 8 || !!lookingUp}
             busy={!!lookingUp}
@@ -243,8 +277,8 @@ export default function CaptureScreen() {
             icon={Images}
             onPress={() => void pick()}
             disabled={busy || taking}
-            style={s.darkButton}
-            color={c.white}
+            variant="dark"
+            size={52}
           />
           <Pressable
             accessibilityRole="button"
@@ -268,72 +302,74 @@ export default function CaptureScreen() {
               setFacing(facing === 'back' ? 'front' : 'back');
             }}
             disabled={!permission?.granted || taking || busy}
-            style={s.darkButton}
-            color={c.white}
+            variant="dark"
+            size={52}
           />
         </View>
       )}
       <Type
-        kind="small"
-        style={{ textAlign: 'center', color: '#BCB4CA', paddingBottom: 12, paddingHorizontal: 18 }}
+        kind="caption"
+        style={{
+          textAlign: 'center',
+          color: 'rgba(255,255,255,0.45)',
+          paddingBottom: 12,
+          paddingHorizontal: 18,
+        }}
       >
         {barcode
           ? 'Product data from USDA Branded Foods and Open Food Facts.'
           : analysisUrl
-            ? 'Snap. Auto-scan. Quick check. Save.'
-            : 'Snap. Review. Save a little moment.'}
+            ? 'Snap · auto-scan · quick check · save'
+            : 'Snap · review · save a little moment'}
       </Type>
     </SafeAreaView>
   );
 }
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#201B2C' },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 },
-  darkButton: { backgroundColor: '#393143' },
+  root: { flex: 1, backgroundColor: c.night },
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  title: { color: c.white, fontFamily: f.displayBold, fontSize: 19, letterSpacing: -0.4 },
   camera: {
     flex: 1,
-    marginHorizontal: 6,
-    borderRadius: 24,
+    marginHorizontal: 12,
+    borderRadius: radius.xl,
     overflow: 'hidden',
     minHeight: 250,
     maxWidth: 900,
-    width: '97%',
+    width: '94%',
     alignSelf: 'center',
+    backgroundColor: c.nightSoft,
   },
   permission: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  frame: {
-    position: 'absolute',
-    top: '15%',
-    left: '8%',
-    right: '8%',
-    bottom: '15%',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.65)',
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  crossH: { width: 24, height: 1, backgroundColor: 'rgba(255,255,255,0.6)', position: 'absolute' },
-  crossV: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.6)', position: 'absolute' },
+  frame: { position: 'absolute', top: '14%', left: '9%', right: '9%', bottom: '16%' },
+  corner: { position: 'absolute', width: 34, height: 34, borderColor: 'rgba(255,255,255,0.92)' },
   hint: {
     position: 'absolute',
-    bottom: 28,
+    bottom: 22,
     alignSelf: 'center',
-    backgroundColor: 'rgba(30,23,40,0.65)',
-    padding: 12,
-    borderRadius: 20,
+    backgroundColor: 'rgba(10,8,20,0.55)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 55,
-    paddingVertical: 16,
+    gap: 52,
+    paddingVertical: 18,
   },
   shutter: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     borderWidth: 3,
     borderColor: c.white,
     padding: 5,
@@ -345,31 +381,12 @@ const s = StyleSheet.create({
     left: '10%',
     right: '10%',
     height: '24%',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.8)',
-    borderRadius: 20,
+    borderWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.85)',
+    borderRadius: radius.lg,
     justifyContent: 'center',
   },
-  laser: { height: 2, marginHorizontal: 14, backgroundColor: '#FF8FA3', borderRadius: 1 },
-  modes: {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    gap: 4,
-    padding: 4,
-    marginTop: 14,
-    borderRadius: 18,
-    backgroundColor: '#2D2639',
-  },
-  mode: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 14,
-    minHeight: 40,
-  },
-  modeActive: { backgroundColor: c.lime },
+  laser: { height: 2, marginHorizontal: 14, backgroundColor: '#FF7A94', borderRadius: 1 },
   typed: {
     flexDirection: 'row',
     gap: 10,
@@ -382,10 +399,10 @@ const s = StyleSheet.create({
   },
   typedInput: {
     flex: 1,
-    height: 48,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    backgroundColor: '#393143',
+    height: 50,
+    borderRadius: radius.pill,
+    paddingHorizontal: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     color: c.white,
     fontFamily: f.medium,
     fontSize: 15,

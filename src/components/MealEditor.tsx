@@ -35,8 +35,8 @@ import {
   validateMeal,
 } from '../lib/model';
 import { analyzeMeal, analysisUrl, ScanInput, scanTimeoutMs } from '../lib/analysis';
-import { colors as c, fonts as f } from '../lib/theme';
-import { Button, Chip, Field, IconButton, Type } from './ui';
+import { colors as c, fonts as f, radius, shadow } from '../lib/theme';
+import { Button, Card, Chip, Field, IconButton, Type } from './ui';
 import { PressableScale } from './PressableScale';
 import { CountUp } from './kit';
 import { Scanner } from './Scanner';
@@ -54,6 +54,29 @@ const scanInput = (meal: Meal, hint?: string): ScanInput | null =>
       : null;
 const wantsScan = (meal: Meal, existing: boolean) =>
   !existing && !!analysisUrl && meal.source === 'manual' && !!scanInput(meal);
+
+function Pill({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[s.pill, selected && s.pillActive]}
+    >
+      <Type style={{ fontSize: 13, fontFamily: f.bold, color: selected ? c.white : c.inkSoft }}>
+        {label}
+      </Type>
+    </PressableScale>
+  );
+}
 
 export function MealEditor({ initial, existing = false }: { initial: Meal; existing?: boolean }) {
   const [meal, setMeal] = useState<Meal>({
@@ -234,11 +257,11 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
         />
       )}
       <View style={s.sectionRow}>
-        <Type style={s.section}>
+        <Type kind="heading">
           {meal.items.length} {meal.items.length === 1 ? 'food' : 'foods'}
         </Type>
         {meal.title ? (
-          <Type kind="small" numberOfLines={1} style={{ flexShrink: 1 }}>
+          <Type kind="caption" numberOfLines={1} style={{ flexShrink: 1 }}>
             {meal.title}
           </Type>
         ) : null}
@@ -286,28 +309,36 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
             setAdding(true);
           }}
           style={s.add}
-          hoverStyle={{ backgroundColor: '#F4F0FA' }}
+          hoverStyle={{ backgroundColor: c.lavenderDeep }}
         >
-          <Plus size={17} color={c.purple} />
-          <Type style={{ fontFamily: f.bold, fontSize: 14, color: c.purple }}>Add a food</Type>
-          <Type kind="small">search USDA, brands or your foods</Type>
+          <View style={s.addIcon}>
+            <Plus size={16} color={c.white} strokeWidth={2.6} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Type style={{ fontFamily: f.bold, fontSize: 14, color: c.purpleDeep }}>
+              Add a food
+            </Type>
+            <Type kind="caption" style={{ color: c.purpleDeep, opacity: 0.8 }}>
+              Search USDA, brands or your foods
+            </Type>
+          </View>
         </PressableScale>
       )}
       {canRescan &&
         (refining ? (
-          <View style={s.refine}>
+          <Card padding={16} style={{ gap: 10 }}>
             <Type kind="label">Tell Carbsy what it missed</Type>
             <TextInput
               accessibilityLabel="Note for the rescan"
               placeholder="e.g. brown rice, about half eaten, diet soda"
-              placeholderTextColor={c.muted}
+              placeholderTextColor={c.faint}
               value={hint}
               onChangeText={setHint}
               maxLength={300}
               style={s.refineInput}
               multiline
             />
-            <Type kind="small">Rescanning replaces the foods above.</Type>
+            <Type kind="caption">Rescanning replaces the foods above.</Type>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Button
                 label="Rescan with note"
@@ -320,7 +351,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
               />
               <Button label="Cancel" variant="ghost" onPress={() => setRefining(false)} />
             </View>
-          </View>
+          </Card>
         ) : (
           <PressableScale
             accessibilityRole="button"
@@ -336,7 +367,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
             }}
             style={s.refineLink}
           >
-            <Wand2 size={15} color={c.purple} />
+            <Wand2 size={15} color={c.purple} strokeWidth={2.2} />
             <Type style={{ fontSize: 13, color: c.purple, fontFamily: f.bold }}>
               {meal.source === 'ai' ? 'Not quite right? Rescan with a note' : 'Retry scan'}
             </Type>
@@ -350,7 +381,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
           {scanError}
         </Type>
       )}
-      <View style={s.detailsCard}>
+      <Card padding={16}>
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={details ? 'Hide meal details' : 'Edit meal details'}
@@ -359,15 +390,18 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
           scaleTo={0.99}
           style={s.detailsHead}
         >
-          <Type style={{ fontFamily: f.bold, fontSize: 14 }}>Name, meal & note</Type>
-          <ChevronDown
-            size={16}
-            color={c.muted}
-            style={{ transform: [{ rotate: details ? '180deg' : '0deg' }] }}
-          />
+          <Type style={{ fontFamily: f.bold, fontSize: 15 }}>Name, meal & note</Type>
+          <View style={[s.chevron, details && { backgroundColor: c.ink }]}>
+            <ChevronDown
+              size={15}
+              color={details ? c.white : c.muted}
+              strokeWidth={2.4}
+              style={{ transform: [{ rotate: details ? '180deg' : '0deg' }] }}
+            />
+          </View>
         </PressableScale>
         {details && (
-          <View style={{ gap: 16, marginTop: 8 }}>
+          <View style={{ gap: 16, marginTop: 14 }}>
             <Field
               label="Memory name"
               value={meal.title}
@@ -375,49 +409,32 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
               placeholder="Something delicious…"
               maxLength={100}
             />
-            <View>
-              <Type kind="label" style={{ marginBottom: 9 }}>
-                Meal
-              </Type>
+            <View style={{ gap: 9 }}>
+              <Type kind="label">Meal</Type>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                 {(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as MealType[]).map((type) => (
-                  <PressableScale
+                  <Pill
                     key={type}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: meal.mealType === type }}
+                    label={type}
+                    selected={meal.mealType === type}
                     onPress={() => patch({ mealType: type })}
-                    style={[s.pill, meal.mealType === type && s.pillActive]}
-                  >
-                    <Type
-                      style={{
-                        fontSize: 12,
-                        color: meal.mealType === type ? c.purple : c.muted,
-                        fontFamily: f.medium,
-                      }}
-                    >
-                      {type}
-                    </Type>
-                  </PressableScale>
+                  />
                 ))}
               </View>
             </View>
             {meal.source !== 'sample' && meal.source !== 'ai' && (
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {(['manual', 'label'] as const).map((source) => (
-                  <PressableScale
-                    key={source}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: meal.source === source }}
-                    onPress={() => patch({ source })}
-                    style={[s.pill, meal.source === source && s.pillActive]}
-                  >
-                    <Type
-                      style={{ fontSize: 12, color: meal.source === source ? c.purple : c.muted }}
-                    >
-                      {sourceLabel[source]}
-                    </Type>
-                  </PressableScale>
-                ))}
+              <View style={{ gap: 9 }}>
+                <Type kind="label">Source</Type>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {(['manual', 'label'] as const).map((source) => (
+                    <Pill
+                      key={source}
+                      label={sourceLabel[source]}
+                      selected={meal.source === source}
+                      onPress={() => patch({ source })}
+                    />
+                  ))}
+                </View>
               </View>
             )}
             <Field
@@ -427,17 +444,17 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
               placeholder="That little café around the corner…"
               multiline
               maxLength={1000}
-              style={{ minHeight: 80 }}
+              style={{ minHeight: 84, textAlignVertical: 'top' }}
             />
           </View>
         )}
-      </View>
+      </Card>
       {existing && (
         <View style={{ gap: 10 }}>
           <Button label="Had this again" icon={Repeat2} variant="secondary" onPress={again} />
           {confirmDelete ? (
-            <View style={{ gap: 9, padding: 15, borderRadius: 16, backgroundColor: c.pink }}>
-              <Type style={{ fontSize: 13 }}>
+            <View style={s.confirm}>
+              <Type style={{ fontSize: 14, fontFamily: f.medium, color: c.pinkInk }}>
                 Remove this photo and its details from your journal?
               </Type>
               <Button
@@ -480,11 +497,16 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
               onPress={close}
               disabled={saving}
             />
-            <Type style={{ fontFamily: f.displayBold, fontSize: 20 }}>
-              {scanning ? 'reading your plate.' : 'your meal.'}
+            <Type kind="heading">
+              {scanning ? 'Reading your plate' : existing ? 'Your memory' : 'Your meal'}
             </Type>
           </View>
-          <Chip>{scanning ? 'SCANNING' : mealSourceLabel(meal)}</Chip>
+          <Chip
+            color={scanning ? c.limeSoft : c.lavender}
+            textColor={scanning ? c.limeInk : c.purpleDeep}
+          >
+            {scanning ? 'SCANNING' : mealSourceLabel(meal).toUpperCase()}
+          </Chip>
         </View>
         <ScrollView
           keyboardShouldPersistTaps="handled"
@@ -508,7 +530,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                   setDetails(true);
                   setExpanded(meal.items[0]?.id ?? null);
                 }}
-                style={{ alignSelf: 'center', marginTop: 15 }}
+                style={{ alignSelf: 'center', marginTop: 12 }}
               />
             </>
           ) : (
@@ -534,17 +556,20 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                   {error}
                 </Type>
               ) : problem ? (
-                <Type kind="small" style={{ lineHeight: 17 }}>
+                <Type kind="caption" style={{ lineHeight: 17 }}>
                   {problem}
                 </Type>
               ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                  <CountUp
-                    value={Number.isFinite(total) ? total : null}
-                    decimals={1}
-                    style={s.barTotal}
-                  />
-                  <Type kind="small"> g carbs</Type>
+                <View>
+                  <Type kind="caption">Total carbs</Type>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                    <CountUp
+                      value={Number.isFinite(total) ? total : null}
+                      decimals={1}
+                      style={s.barTotal}
+                    />
+                    <Type style={{ fontFamily: f.display, color: c.muted, fontSize: 15 }}> g</Type>
+                  </View>
                 </View>
               )}
             </View>
@@ -561,52 +586,54 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
     </SafeAreaView>
   );
 }
+
 const s = StyleSheet.create({
   top: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     gap: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: c.line,
   },
-  content: { padding: 20, paddingBottom: 40, maxWidth: 1100, width: '100%', alignSelf: 'center' },
+  content: {
+    padding: 20,
+    paddingTop: 8,
+    paddingBottom: 40,
+    maxWidth: 1100,
+    width: '100%',
+    alignSelf: 'center',
+  },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
     gap: 12,
+    marginTop: 4,
   },
-  section: { fontFamily: f.displayBold, fontSize: 19 },
   add: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    padding: 15,
-    minHeight: 54,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#D6CBEE',
+    gap: 12,
+    padding: 14,
+    minHeight: 60,
+    borderRadius: radius.lg,
+    backgroundColor: c.lavender,
   },
-  refine: {
-    gap: 10,
-    padding: 15,
-    borderRadius: 18,
-    backgroundColor: c.white,
-    borderWidth: 1,
-    borderColor: c.line,
+  addIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: c.purple,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   refineInput: {
-    minHeight: 64,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: c.line,
-    padding: 12,
-    fontFamily: f.regular,
+    minHeight: 68,
+    borderRadius: radius.md,
+    backgroundColor: c.surfaceAlt,
+    padding: 13,
+    fontFamily: f.medium,
     fontSize: 14,
     color: c.ink,
     textAlignVertical: 'top',
@@ -618,37 +645,38 @@ const s = StyleSheet.create({
     minHeight: 40,
     alignSelf: 'flex-start',
   },
-  detailsCard: {
-    padding: 15,
-    borderRadius: 18,
-    backgroundColor: c.white,
-    borderWidth: 1,
-    borderColor: c.line,
-  },
   detailsHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 28,
+    minHeight: 30,
+  },
+  chevron: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: c.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pill: {
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.white,
+    backgroundColor: c.surfaceAlt,
     paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
   },
-  pillActive: { backgroundColor: c.lavender, borderColor: '#D3C5EE' },
+  pillActive: { backgroundColor: c.ink },
+  confirm: { gap: 9, padding: 16, borderRadius: radius.lg, backgroundColor: c.pink },
   saveBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: c.line,
-    backgroundColor: '#FDFCFA',
+    paddingTop: 14,
+    backgroundColor: c.white,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    ...shadow.float,
   },
-  barTotal: { fontFamily: f.displayBold, fontSize: 24, lineHeight: 30 },
+  barTotal: { fontFamily: f.displayBold, fontSize: 26, lineHeight: 30, letterSpacing: -1 },
 });
