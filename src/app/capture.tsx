@@ -9,7 +9,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Barcode, Camera, Images, SwitchCamera, X, Zap, ZapOff } from 'lucide-react-native';
 import { usePhotoActions } from '../components/usePhotoActions';
 import { Button, IconButton, Segmented, Type } from '../components/ui';
-import { Mascot } from '../components/Mascot';
 import { useApp } from '../state/AppProvider';
 import { colors as c, fonts as f, radius } from '../lib/theme';
 import { analysisUrl, lookupBarcode } from '../lib/analysis';
@@ -190,9 +189,9 @@ export default function CaptureScreen() {
           </>
         ) : (
           <View style={s.permission}>
-            <Mascot size={110} />
+            <Camera size={40} color={c.white} strokeWidth={1.3} />
             <Type kind="title" style={{ color: c.white, textAlign: 'center', marginTop: 22 }}>
-              Your food, in focus.
+              Add a meal photo
             </Type>
             <Type
               style={{
@@ -202,14 +201,14 @@ export default function CaptureScreen() {
                 marginTop: 12,
               }}
             >
-              Let Carbsy use your camera to turn your next bite into a little memory.
+              Allow camera access to photograph your meal.
             </Type>
             <Button
               label={
                 permission?.canAskAgain === false ? 'Open camera settings' : 'Let’s open the camera'
               }
               icon={Camera}
-              variant="lime"
+              variant="primary"
               onPress={() => {
                 if (permission?.canAskAgain === false) {
                   if (Platform.OS === 'web')
@@ -264,7 +263,7 @@ export default function CaptureScreen() {
           />
           <Button
             label="Look up"
-            variant="lime"
+            variant="primary"
             onPress={() => void lookup(typedCode)}
             disabled={typedCode.length < 8 || !!lookingUp}
             busy={!!lookingUp}

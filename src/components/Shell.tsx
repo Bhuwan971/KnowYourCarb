@@ -1,27 +1,17 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { usePathname, router, Href } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Camera,
-  Images,
-  ChartNoAxesColumn,
-  Settings2,
-  ArrowUpRight,
-  ShieldCheck,
-  LucideIcon,
-} from 'lucide-react-native';
+import { Camera, Images, ChartNoAxesColumn, Settings2, LucideIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors as c, fonts as f, gradients, radius, shadow } from '../lib/theme';
-import { Mascot, LogoMark } from './Mascot';
-import { Chip, Type } from './ui';
+import { colors as c, fonts as f, radius } from '../lib/theme';
+import { Type } from './ui';
 import { useApp } from '../state/AppProvider';
 
 const tabs: { href: Href; label: string; short: string; icon: LucideIcon }[] = [
-  { href: '/', label: 'Snap a meal', short: 'Snap', icon: Camera },
+  { href: '/', label: 'Today', short: 'Today', icon: Camera },
   { href: '/memories', label: 'Memories', short: 'Memories', icon: Images },
-  { href: '/rhythm', label: 'Your rhythm', short: 'Rhythm', icon: ChartNoAxesColumn },
-  { href: '/settings', label: 'Your space', short: 'You', icon: Settings2 },
+  { href: '/rhythm', label: 'Rhythm', short: 'Rhythm', icon: ChartNoAxesColumn },
+  { href: '/settings', label: 'Settings', short: 'Settings', icon: Settings2 },
 ];
 
 export const TAB_BAR_CLEARANCE = 96;
@@ -35,7 +25,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     tap();
     router.navigate(href);
   };
-  const sideNav = tabs.map(({ href, label, icon: Icon }) => {
+  const sideNav = tabs.map(({ href, label, short, icon: Icon }) => {
     const active = pathname === href;
     return (
       <Pressable
@@ -43,23 +33,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
         accessibilityRole="tab"
         accessibilityLabel={label}
         accessibilityState={{ selected: active }}
+        aria-selected={active}
         onPress={() => go(href)}
         style={({ hovered, pressed }: { pressed: boolean; hovered?: boolean }) => [
           s.navItem,
-          active && { backgroundColor: c.ink },
-          hovered && !active && { backgroundColor: c.lavender },
+          active && { backgroundColor: c.lavender },
+          hovered && !active && { backgroundColor: c.surfaceAlt },
           pressed && { opacity: 0.75 },
         ]}
       >
-        <Icon size={18} color={active ? c.lime : c.inkSoft} strokeWidth={active ? 2.2 : 1.8} />
+        <Icon size={18} color={active ? c.purple : c.muted} strokeWidth={1.8} />
         <Type
           style={{
             fontSize: 14,
             fontFamily: active ? f.bold : f.medium,
-            color: active ? c.white : c.inkSoft,
+            color: active ? c.purpleDeep : c.inkSoft,
           }}
         >
-          {label}
+          {short}
         </Type>
       </Pressable>
     );
@@ -72,18 +63,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
         accessibilityRole="tab"
         accessibilityLabel={label}
         accessibilityState={{ selected: active }}
+        aria-selected={active}
         onPress={() => go(href)}
         style={({ pressed }) => [s.mobileItem, pressed && { opacity: 0.7 }]}
       >
-        <View style={[s.mobileIcon, active && s.mobileIconActive]}>
-          <Icon size={20} color={active ? c.white : c.muted} strokeWidth={active ? 2.2 : 1.8} />
+        <View style={s.mobileIcon}>
+          <Icon size={20} color={active ? c.purple : c.muted} strokeWidth={active ? 2.2 : 1.8} />
         </View>
         <Type
           style={{
-            fontSize: 10,
-            lineHeight: 12,
+            fontSize: 11,
+            lineHeight: 15,
             fontFamily: active ? f.bold : f.medium,
-            color: active ? c.ink : c.muted,
+            color: active ? c.purpleDeep : c.muted,
           }}
         >
           {short}
@@ -96,42 +88,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {wide && (
         <View style={s.sidebar}>
           <View style={s.brand}>
-            <LogoMark size={38} />
             <Type style={s.brandName}>carbsy</Type>
           </View>
           <View style={s.navigation}>{sideNav}</View>
           <View style={{ flex: 1 }} />
-          <LinearGradient colors={[...gradients.purple]} style={s.beanCard}>
-            <Mascot size={70} happy />
-            <Type
-              style={{ fontFamily: f.displayBold, fontSize: 17, color: c.white, marginTop: 10 }}
-            >
-              Less guessing.
-            </Type>
-            <Type style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 3 }}>
-              More living.
-            </Type>
-          </LinearGradient>
-          <View style={s.sideFooter}>
-            <ShieldCheck size={15} color={c.limeInk} />
-            <Type kind="caption" style={{ color: c.inkSoft }}>
-              Everything stays on this device.
-            </Type>
-          </View>
         </View>
       )}
       <View style={{ flex: 1 }}>
         {!wide && (
           <View style={s.topbar}>
             <View style={{ flexDirection: 'row', gap: 9, alignItems: 'center' }}>
-              <LogoMark size={32} />
               <Type style={{ fontFamily: f.displayBold, fontSize: 24, letterSpacing: -0.8 }}>
                 carbsy
               </Type>
             </View>
-            <Chip icon={ShieldCheck} color={c.limeSoft} textColor={c.limeInk}>
-              On device
-            </Chip>
           </View>
         )}
         <ScrollView
@@ -148,11 +118,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
           keyboardShouldPersistTaps="handled"
         >
           {children}
-          <View style={s.footer}>
-            <Type kind="caption" style={{ color: c.faint }}>
-              Little snaps. A little more clarity.
-            </Type>
-          </View>
         </ScrollView>
         {!wide && (
           <View
@@ -168,15 +133,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
 }
 
 export function PageHeading({
-  eyebrow,
   title,
   subtitle,
   action,
   compact = false,
 }: {
-  eyebrow: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   action?: React.ReactNode;
   compact?: boolean;
 }) {
@@ -184,19 +147,20 @@ export function PageHeading({
   return (
     <View style={[s.heading, mobile && { marginBottom: compact ? 18 : 22 }]}>
       <View style={{ flex: 1, gap: 8 }}>
-        <Type kind="eyebrow">{eyebrow}</Type>
         <Type
           kind="title"
           style={{
-            fontSize: mobile ? (compact ? 28 : 32) : 40,
-            lineHeight: mobile ? (compact ? 33 : 37) : 46,
+            fontSize: mobile ? (compact ? 26 : 28) : 32,
+            lineHeight: mobile ? (compact ? 31 : 34) : 38,
           }}
         >
           {title}
         </Type>
-        <Type kind="small" style={{ fontSize: mobile ? 14 : 15, lineHeight: 21 }}>
-          {subtitle}
-        </Type>
+        {subtitle && (
+          <Type kind="small" style={{ fontSize: mobile ? 14 : 15, lineHeight: 21 }}>
+            {subtitle}
+          </Type>
+        )}
       </View>
       {action}
     </View>
@@ -215,7 +179,6 @@ export function TextLink({ label, onPress }: { label: string; onPress: () => voi
       ]}
     >
       <Type style={{ color: c.purple, fontSize: 13, fontFamily: f.bold }}>{label}</Type>
-      <ArrowUpRight size={15} color={c.purple} strokeWidth={2.2} />
     </Pressable>
   );
 }
@@ -223,11 +186,10 @@ export function TextLink({ label, onPress }: { label: string; onPress: () => voi
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg, flexDirection: 'row' },
   sidebar: {
-    width: 250,
+    width: 216,
     backgroundColor: c.white,
     padding: 22,
     paddingTop: 30,
-    ...shadow.soft,
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
   brandName: { fontFamily: f.displayBold, fontSize: 28, letterSpacing: -1.2 },
@@ -238,21 +200,7 @@ const s = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     height: 48,
-    borderRadius: radius.pill,
-  },
-  beanCard: {
-    alignItems: 'center',
-    borderRadius: radius.lg,
-    padding: 18,
-    paddingBottom: 20,
-    marginBottom: 18,
-    overflow: 'hidden',
-  },
-  sideFooter: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    paddingHorizontal: 6,
+    borderRadius: radius.sm,
   },
   topbar: {
     height: 60,
@@ -261,7 +209,14 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  content: { padding: 40, paddingTop: 34, width: '100%', maxWidth: 1320, alignSelf: 'center' },
+  content: {
+    padding: 40,
+    paddingTop: 34,
+    paddingBottom: 40,
+    width: '100%',
+    maxWidth: 1120,
+    alignSelf: 'center',
+  },
   heading: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -269,26 +224,23 @@ const s = StyleSheet.create({
     marginBottom: 28,
     gap: 15,
   },
-  footer: { alignItems: 'center', paddingTop: 36 },
   mobileNavWrap: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 20,
+    backgroundColor: c.white,
     alignItems: 'center',
   },
   mobileNav: {
     flexDirection: 'row',
     backgroundColor: c.white,
-    borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 8,
     width: '100%',
-    maxWidth: 420,
-    ...shadow.float,
+    maxWidth: 480,
   },
-  mobileItem: { flex: 1, alignItems: 'center', gap: 3 },
+  mobileItem: { flex: 1, alignItems: 'center', gap: 3, minHeight: 48, justifyContent: 'center' },
   mobileIcon: {
     width: 44,
     height: 30,
@@ -296,5 +248,4 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mobileIconActive: { backgroundColor: c.ink },
 });

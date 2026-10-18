@@ -6,6 +6,7 @@ test('manual fractional portions persist, update totals, and can be deleted', as
   await expect(
     page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ }),
   ).toBeVisible();
+  await page.getByRole('button', { name: 'More options', exact: true }).click();
   await page.getByRole('button', { name: 'Add carbs manually', exact: true }).click();
   await page.getByLabel('Memory name', { exact: true }).fill('Lunch with rice');
   await page.getByLabel('Food 1 name', { exact: true }).fill('Cooked rice');
@@ -22,10 +23,14 @@ test('manual fractional portions persist, update totals, and can be deleted', as
   await page.reload();
   await page.getByRole('button', { name: 'Open Lunch with rice', exact: true }).click();
   await expect(page.getByText('100 g · ×1½', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'More of Cooked rice', exact: true })).toHaveCount(
+    0,
+  );
+  await page.getByRole('button', { name: /^Cooked rice, .* Edit details$/ }).click();
   await page.getByRole('button', { name: 'More of Cooked rice', exact: true }).click();
   await page.getByRole('button', { name: 'More of Cooked rice', exact: true }).click();
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-  await page.getByRole('tab', { name: 'Snap a meal', exact: true }).click();
+  await page.getByRole('tab', { name: 'Today', exact: true }).click();
   await expect(page.getByText('56.4', { exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Memories', exact: true }).click();
   await page.getByRole('button', { name: 'Open Lunch with rice', exact: true }).click();
@@ -34,25 +39,28 @@ test('manual fractional portions persist, update totals, and can be deleted', as
   await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Remove memory', exact: true }).click();
   await page.getByRole('button', { name: 'Yes, remove this memory', exact: true }).click();
-  await expect(
-    page.getByText('Your first memory starts here.').filter({ visible: true }),
-  ).toBeVisible();
+  await expect(page.getByText('No saved meals yet.').filter({ visible: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
-test('sample snap animates, stores a memory, and stays out of real totals', async ({ page }) => {
+test('sample meal opens immediately, stores a memory, and stays out of real totals', async ({
+  page,
+}) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Try a sample snap', exact: true }).last().click();
-  await expect(page.getByText('Reading your plate…')).toBeVisible();
+  await page.getByRole('button', { name: 'More options', exact: true }).click();
+  await page.getByRole('button', { name: 'Try a sample snap', exact: true }).click();
   await expect(page.getByText('A bowl of good things', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Save memory', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Open A bowl of good things', exact: true }),
   ).toBeVisible();
-  await page.getByRole('tab', { name: 'Snap a meal', exact: true }).click();
+  await page.getByRole('tab', { name: 'Today', exact: true }).click();
   await expect(page.getByText('0', { exact: true }).filter({ visible: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Memories', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Samples', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Filter memories', exact: true }).click();
+  await page.getByRole('button', { name: 'Samples', exact: true }).click();
   await page.getByLabel('Search memories', { exact: true }).fill('does not exist');
-  await expect(page.getByText('No little matches yet.').filter({ visible: true })).toBeVisible();
+  await expect(page.getByText('No meals found.').filter({ visible: true })).toBeVisible();
   await page.getByRole('button', { name: 'Show all memories', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Open A bowl of good things', exact: true }),
@@ -76,7 +84,8 @@ test('imported photo persists after reload; discarded snaps do not save', async 
     /^data:image\/jpeg;base64,/,
   );
   await page.getByRole('button', { name: 'Back to memories', exact: true }).click();
-  await page.getByRole('tab', { name: 'Snap a meal', exact: true }).click();
+  await page.getByRole('tab', { name: 'Today', exact: true }).click();
+  await page.getByRole('button', { name: 'More options', exact: true }).click();
   await page.getByRole('button', { name: 'Add carbs manually', exact: true }).click();
   await page.getByLabel('Memory name', { exact: true }).fill('Unsaved meal');
   await page.getByRole('button', { name: 'Discard snap', exact: true }).last().click();
@@ -85,7 +94,7 @@ test('imported photo persists after reload; discarded snaps do not save', async 
 });
 test('preferences persist and all main screens fit the viewport', async ({ page }, testInfo) => {
   await page.goto('/');
-  for (const tab of ['Snap a meal', 'Memories', 'Your rhythm', 'Your space']) {
+  for (const tab of ['Today', 'Memories', 'Rhythm', 'Settings']) {
     await page.getByRole('tab', { name: tab, exact: true }).click();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -102,6 +111,28 @@ test('preferences persist and all main screens fit the viewport', async ({ page 
   await expect(page.getByLabel('Daily carb reference (optional)', { exact: true })).toHaveValue(
     '150',
   );
-  await page.getByRole('tab', { name: 'Snap a meal', exact: true }).click();
+  await page.getByRole('tab', { name: 'Today', exact: true }).click();
   await expect(page.getByText(/Good (morning|afternoon|evening), Alex/)).toBeVisible();
+});
+
+test('home keeps secondary entry methods behind a reversible disclosure', async ({ page }) => {
+  await page.goto('/');
+  const more = page.getByRole('button', { name: 'More options', exact: true });
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Add carbs manually', exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole('button', { name: 'Try a sample snap', exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Import a food photo', exact: true }),
+  ).toBeVisible();
+  await more.click();
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('button', { name: 'Add carbs manually', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try a sample snap', exact: true })).toBeVisible();
+  await more.click();
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Add carbs manually', exact: true })).toHaveCount(
+    0,
+  );
 });

@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDown } from 'lucide-react-native';
 import {
   Meal,
@@ -12,13 +10,12 @@ import {
   totalCarbsRange,
   totalNutrient,
 } from '../../lib/model';
-import { colors as c, fonts as f, gradients, radius, shadow } from '../../lib/theme';
-import { Card, Chip, FoodPhoto, Type } from '../ui';
-import { Mascot } from '../Mascot';
+import { colors as c, fonts as f, radius } from '../../lib/theme';
+import { Card, FoodPhoto, Type } from '../ui';
 import { PressableScale } from '../PressableScale';
-import { confidenceMeta, ConfidencePill, CountUp, RangeBar, sourceOf } from '../kit';
+import { confidenceMeta, ConfidencePill, NumberValue, RangeBar, sourceOf } from '../kit';
 
-export function MealHero({ meal, revealed }: { meal: Meal; revealed: boolean }) {
+export function MealHero({ meal }: { meal: Meal }) {
   const wide = useWindowDimensions().width >= 800;
   const total = totalCarbs(meal.items);
   const calories = totalCalories(meal.items);
@@ -31,9 +28,8 @@ export function MealHero({ meal, revealed }: { meal: Meal; revealed: boolean }) 
         {estimated ? 'Estimated carbs' : 'Total carbs'}
       </Type>
       <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-        <CountUp
+        <NumberValue
           value={Number.isFinite(total) ? total : null}
-          from={revealed ? 0 : undefined}
           decimals={1}
           prefix={estimated ? '≈' : ''}
           style={s.total}
@@ -52,39 +48,25 @@ export function MealHero({ meal, revealed }: { meal: Meal; revealed: boolean }) 
   );
   return (
     <View style={{ gap: 14 }}>
-      {meal.photo ? (
-        <View style={[s.photo, { height: wide ? 420 : 310 }]}>
+      {meal.photo && (
+        <View style={[s.photo, { height: wide ? 260 : 200 }]}>
           <FoodPhoto uri={meal.photo} style={StyleSheet.absoluteFill} />
-          <LinearGradient
-            colors={[...gradients.photoBottom]}
-            style={[StyleSheet.absoluteFill, { top: '45%' }]}
-          />
-          <View style={s.photoChip}>
-            <Chip color="rgba(255,255,255,0.94)" textColor={c.ink}>
-              {meal.mealType.toUpperCase()}
-            </Chip>
-          </View>
-          <View style={s.stickerSpot}>{sticker}</View>
-        </View>
-      ) : (
-        <View style={s.plain}>
-          <Mascot size={70} happy />
-          <View style={{ flex: 1 }}>{sticker}</View>
         </View>
       )}
+      {sticker}
       <Card padding={0} style={s.macros}>
         {[
           { label: 'Calories', value: calories, unit: 'kcal', decimals: 0 },
           { label: 'Protein', value: totalNutrient(meal.items, 'protein'), unit: 'g', decimals: 1 },
           { label: 'Fat', value: totalNutrient(meal.items, 'fat'), unit: 'g', decimals: 1 },
           { label: 'Fiber', value: totalNutrient(meal.items, 'fiber'), unit: 'g', decimals: 1 },
-        ].map((macro, i) => (
-          <View key={macro.label} style={[s.macro, i > 0 && s.macroDivider]}>
+        ].map((macro) => (
+          <View key={macro.label} style={s.macro}>
             <Type kind="caption" style={{ fontSize: 11 }}>
               {macro.label}
             </Type>
             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <CountUp value={macro.value} decimals={macro.decimals} style={s.macroValue} />
+              <NumberValue value={macro.value} decimals={macro.decimals} style={s.macroValue} />
               {macro.value !== null && (
                 <Type kind="caption" style={{ fontSize: 11 }}>
                   {' '}
@@ -123,9 +105,9 @@ function HowWeKnow({
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel="How this estimate was made"
+        aria-expanded={open}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(!open)}
-        scaleTo={0.99}
         style={s.howHead}
       >
         <ConfidencePill level={level} />
@@ -140,7 +122,7 @@ function HowWeKnow({
         />
       </PressableScale>
       {open && (
-        <Animated.View entering={FadeIn.duration(160)} style={{ gap: 12, paddingTop: 12 }}>
+        <View style={{ gap: 12, paddingTop: 12 }}>
           <Type style={{ fontSize: 13, lineHeight: 20 }}>{confidenceMeta[level].explain}</Type>
           {meal.items.map((item) => (
             <View key={item.id} style={{ gap: 2 }}>
@@ -171,7 +153,7 @@ function HowWeKnow({
                 );
               })}
           </View>
-        </Animated.View>
+        </View>
       )}
     </Card>
   );
@@ -182,32 +164,16 @@ const s = StyleSheet.create({
     borderRadius: radius.xl,
     overflow: 'hidden',
     backgroundColor: c.lavender,
-    ...shadow.card,
   },
-  photoChip: { position: 'absolute', top: 16, left: 16 },
-  stickerSpot: { position: 'absolute', left: 16, right: 16, bottom: 16, alignItems: 'flex-end' },
   sticker: {
-    padding: 14,
-    paddingHorizontal: 18,
-    borderRadius: radius.lg,
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    paddingVertical: 8,
     gap: 2,
     alignSelf: 'flex-start',
-    ...shadow.float,
   },
-  total: { fontFamily: f.displayBold, fontSize: 46, lineHeight: 52, letterSpacing: -2 },
+  total: { fontFamily: f.displayBold, fontSize: 42, lineHeight: 48, letterSpacing: -2 },
   totalUnit: { fontFamily: f.display, fontSize: 20, color: c.muted },
-  plain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    padding: 18,
-    borderRadius: radius.xl,
-    backgroundColor: c.lavender,
-  },
   macros: { flexDirection: 'row', overflow: 'hidden' },
-  macro: { flex: 1, paddingVertical: 14, paddingHorizontal: 14, gap: 2 },
-  macroDivider: { borderLeftWidth: 1, borderLeftColor: c.line },
+  macro: { flex: 1, paddingVertical: 14, paddingHorizontal: 10, gap: 2 },
   macroValue: { fontFamily: f.displayBold, fontSize: 18, lineHeight: 23, letterSpacing: -0.4 },
   howHead: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 32 },
   nutrients: { gap: 2, backgroundColor: c.surfaceAlt, borderRadius: radius.md, padding: 12 },

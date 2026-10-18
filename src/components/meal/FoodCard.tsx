@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
 import { ChevronDown, Info, Minus, Plus, Trash2 } from 'lucide-react-native';
 import { FoodItem, nutrientFields, round, withIdentity, withPortionWeight } from '../../lib/model';
 import { portionChoices, quantityText, selectedChoice } from '../../lib/portions';
 import { colors as c, fonts as f, radius, shadow } from '../../lib/theme';
 import { Field, IconButton, Type } from '../ui';
 import { PressableScale } from '../PressableScale';
-import { ConfidencePill, CountUp, SourcePill, sourceOf } from '../kit';
+import { ConfidencePill, NumberValue, SourcePill, sourceOf } from '../kit';
 
 // Portions step in exact quarters; one-decimal rounding would turn 1.25 into 1.3.
 const quarter = (value: number) => Math.round(value * 4) / 4;
@@ -105,7 +104,6 @@ export function FoodCard({
         accessibilityLabel={`${name}, ${Number.isFinite(eaten) ? round(eaten) : 'unknown'} grams of carbs. ${expanded ? 'Hide' : 'Edit'} details`}
         accessibilityState={{ expanded }}
         onPress={onToggle}
-        scaleTo={0.99}
         style={s.head}
       >
         <View style={{ flex: 1, gap: 6 }}>
@@ -128,7 +126,7 @@ export function FoodCard({
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-            <CountUp
+            <NumberValue
               value={Number.isFinite(eaten) ? round(eaten) : null}
               decimals={1}
               style={s.carbs}
@@ -148,39 +146,40 @@ export function FoodCard({
           </View>
         </View>
       </PressableScale>
-      <View style={s.stepRow}>
-        <Type kind="small">Portions eaten</Type>
-        <View style={s.stepper}>
-          <IconButton
-            label={`Less of ${name}`}
-            icon={Minus}
-            onPress={() => {
-              tap();
-              patch({ servings: Math.max(0.25, quarter((item.servings || 1) - 0.25)) });
-            }}
-            disabled={item.servings <= 0.25}
-            variant="plain"
-            size={34}
-            style={s.stepButton}
-          />
-          <Type style={s.stepValue}>
-            {Number.isFinite(item.servings) ? quantityText(item.servings) : '—'}
-          </Type>
-          <IconButton
-            label={`More of ${name}`}
-            icon={Plus}
-            onPress={() => {
-              tap();
-              patch({ servings: Math.min(100, quarter((item.servings || 1) + 0.25)) });
-            }}
-            variant="plain"
-            size={34}
-            style={s.stepButton}
-          />
-        </View>
-      </View>
       {expanded && (
-        <Animated.View entering={FadeIn.duration(160)} style={{ gap: 16, paddingTop: 4 }}>
+        <View style={{ gap: 16, paddingTop: 4 }}>
+          <View style={s.stepRow}>
+            <Type kind="small">Portions eaten</Type>
+            <View style={s.stepper}>
+              <IconButton
+                label={`Less of ${name}`}
+                icon={Minus}
+                onPress={() => {
+                  tap();
+                  patch({ servings: Math.max(0.25, quarter((item.servings || 1) - 0.25)) });
+                }}
+                disabled={item.servings <= 0.25}
+                variant="plain"
+                size={44}
+                style={s.stepButton}
+              />
+              <Type style={s.stepValue}>
+                {Number.isFinite(item.servings) ? quantityText(item.servings) : '—'}
+              </Type>
+              <IconButton
+                label={`More of ${name}`}
+                icon={Plus}
+                onPress={() => {
+                  tap();
+                  patch({ servings: Math.min(100, quarter((item.servings || 1) + 0.25)) });
+                }}
+                variant="plain"
+                size={44}
+                style={s.stepButton}
+              />
+            </View>
+          </View>
+
           {!!item.alternatives?.length && (
             <View style={{ gap: 8 }}>
               <Type kind="label">What is it exactly?</Type>
@@ -310,7 +309,7 @@ export function FoodCard({
             <Trash2 size={15} color={c.error} strokeWidth={2.2} />
             <Type style={{ fontSize: 13, color: c.error, fontFamily: f.bold }}>Remove food</Type>
           </PressableScale>
-        </Animated.View>
+        </View>
       )}
     </View>
   );
@@ -343,8 +342,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: c.line,
     paddingTop: 10,
   },
   stepper: {

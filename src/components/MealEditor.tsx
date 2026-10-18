@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   ArrowLeft,
   ChevronDown,
@@ -38,7 +37,7 @@ import { analyzeMeal, analysisUrl, ScanInput, scanTimeoutMs } from '../lib/analy
 import { colors as c, fonts as f, radius, shadow } from '../lib/theme';
 import { Button, Card, Chip, Field, IconButton, Type } from './ui';
 import { PressableScale } from './PressableScale';
-import { CountUp } from './kit';
+import { NumberValue } from './kit';
 import { Scanner } from './Scanner';
 import { FoodCard } from './meal/FoodCard';
 import { MealHero } from './meal/MealHero';
@@ -83,10 +82,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
     ...initial,
     items: initial.items.map((i) => ({ ...i })),
   });
-  const [scanning, setScanning] = useState(
-    initial.source === 'sample' ? !existing : wantsScan(initial, existing),
-  );
-  const [revealed, setRevealed] = useState(false);
+  const [scanning, setScanning] = useState(wantsScan(initial, existing));
   const [saving, setSaving] = useState(false);
   // Nothing will fill this in automatically: open the fields for typing right away.
   const typing = !existing && initial.source === 'manual' && !wantsScan(initial, existing);
@@ -123,7 +119,6 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
           setAsked(new Set());
           setAnswered(0);
           setExpanded(null);
-          setRevealed(true);
           setRefining(false);
           setHint('');
         }
@@ -157,12 +152,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
   useEffect(() => {
     mounted.current = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    if (!existing && initial.source === 'sample')
-      timer = setTimeout(() => {
-        setScanning(false);
-        setRevealed(true);
-      }, 2100);
-    else if (wantsScan(initial, existing)) {
+    if (wantsScan(initial, existing)) {
       const input = scanInput(initial)!;
       timer = setTimeout(() => void analyze(input), 0);
     }
@@ -199,10 +189,10 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
       setDraft(null);
       notify(
         existing
-          ? 'Your memory has a little update ✦'
+          ? 'Changes saved.'
           : meal.source === 'sample'
-            ? 'Sample saved ✦ Your daily total stays the same.'
-            : `${round(totalCarbs(meal.items))} g carbs, saved ✦`,
+            ? 'Sample saved. Excluded from totals.'
+            : `${round(totalCarbs(meal.items))} g carbs saved.`,
       );
       router.replace('/memories');
     } catch (e) {
@@ -215,7 +205,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
     setSaving(true);
     try {
       await deleteMeal(meal.id);
-      notify('Memory removed. A fresh little start.');
+      notify('Meal removed.');
       router.replace('/memories');
     } catch {
       setError('Couldn’t remove this memory. Please try again.');
@@ -267,10 +257,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
         ) : null}
       </View>
       {meal.items.map((item, index) => (
-        <Animated.View
-          key={item.id}
-          entering={revealed ? FadeInDown.duration(240).delay(index * 60) : undefined}
-        >
+        <View key={item.id}>
           <FoodCard
             item={item}
             index={index}
@@ -283,7 +270,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
             }}
             tap={tap}
           />
-        </Animated.View>
+        </View>
       ))}
       {adding ? (
         <AddFood
@@ -317,9 +304,6 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
           <View style={{ flex: 1 }}>
             <Type style={{ fontFamily: f.bold, fontSize: 14, color: c.purpleDeep }}>
               Add a food
-            </Type>
-            <Type kind="caption" style={{ color: c.purpleDeep, opacity: 0.8 }}>
-              Search USDA, brands or your foods
             </Type>
           </View>
         </PressableScale>
@@ -385,9 +369,9 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={details ? 'Hide meal details' : 'Edit meal details'}
+          aria-expanded={details}
           accessibilityState={{ expanded: details }}
           onPress={() => setDetails(!details)}
-          scaleTo={0.99}
           style={s.detailsHead}
         >
           <Type style={{ fontFamily: f.bold, fontSize: 15 }}>Name, meal & note</Type>
@@ -515,11 +499,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
         >
           {scanning ? (
             <>
-              <Scanner
-                photo={meal.photo}
-                prompt={meal.photo ? undefined : meal.prompt}
-                sample={meal.source === 'sample'}
-              />
+              <Scanner photo={meal.photo} prompt={meal.photo ? undefined : meal.prompt} />
               <Button
                 label="Cancel and review manually"
                 variant="ghost"
@@ -536,17 +516,14 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
           ) : (
             <View style={{ flexDirection: split ? 'row' : 'column', gap: 22 }}>
               <View style={{ flex: split ? 1 : undefined }}>
-                <MealHero meal={meal} revealed={revealed} />
+                <MealHero meal={meal} />
               </View>
               <View style={{ flex: split ? 1 : undefined }}>{results}</View>
             </View>
           )}
         </ScrollView>
         {!scanning && (
-          <Animated.View
-            entering={FadeInDown.duration(220)}
-            style={[s.saveBar, { paddingBottom: Math.max(insets.bottom, 14) }]}
-          >
+          <View style={[s.saveBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
             <View style={{ flex: 1 }}>
               {error ? (
                 <Type
@@ -563,7 +540,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
                 <View>
                   <Type kind="caption">Total carbs</Type>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                    <CountUp
+                    <NumberValue
                       value={Number.isFinite(total) ? total : null}
                       decimals={1}
                       style={s.barTotal}
@@ -580,7 +557,7 @@ export function MealEditor({ initial, existing = false }: { initial: Meal; exist
               disabled={!!problem}
               onPress={() => void save()}
             />
-          </Animated.View>
+          </View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>

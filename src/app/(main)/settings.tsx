@@ -1,27 +1,15 @@
 import React, { useState } from 'react';
 import { Platform, Share, StyleSheet, Switch, View } from 'react-native';
-import { Download, Heart, Save, ShieldCheck, ScanLine, Vibrate } from 'lucide-react-native';
+import { Download, Save, Vibrate } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
 import { analysisUrl } from '../../lib/analysis';
 import { colors as c, fonts as f, radius } from '../../lib/theme';
 import { PageHeading } from '../../components/Shell';
 import { Button, Card, Chip, Field, Type } from '../../components/ui';
-import { Mascot } from '../../components/Mascot';
 
-function Head({
-  icon: Icon,
-  title,
-  trailing,
-}: {
-  icon: typeof Heart;
-  title: string;
-  trailing?: React.ReactNode;
-}) {
+function Head({ title, trailing }: { title: string; trailing?: React.ReactNode }) {
   return (
     <View style={s.head}>
-      <View style={s.headIcon}>
-        <Icon size={18} color={c.purpleDeep} strokeWidth={2.2} />
-      </View>
       <Type kind="heading" style={{ flex: 1 }}>
         {title}
       </Type>
@@ -49,7 +37,7 @@ export default function SettingsScreen() {
     setError(null);
     try {
       await updateSettings({ name: name.trim(), goal: value, haptics });
-      notify('A little more you. Preferences saved ✦');
+      notify('Preferences saved.');
     } catch {
       setError('Couldn’t save your preferences. Please try again.');
     } finally {
@@ -110,14 +98,10 @@ export default function SettingsScreen() {
   };
   return (
     <>
-      <PageHeading
-        eyebrow="A happy little space"
-        title="Your space"
-        subtitle="Keep things comfortable, simple, and on your terms."
-      />
+      <PageHeading title="Settings" />
       <View style={{ maxWidth: 720, gap: 16 }}>
         <Card padding={22} style={{ gap: 20 }}>
-          <Head icon={Heart} title="Your everyday" />
+          <Head title="Preferences" />
           <Field
             label="What should we call you?"
             placeholder="Your first name (optional)"
@@ -131,15 +115,13 @@ export default function SettingsScreen() {
             onChangeText={setGoal}
             placeholder="Leave blank to just keep track"
             keyboardType="decimal-pad"
-            hint="Set your own reference if you have one. Carbsy doesn’t choose a target for you."
           />
           <View style={s.row}>
             <View style={s.rowIcon}>
               <Vibrate size={16} color={c.purpleDeep} strokeWidth={2.2} />
             </View>
             <View style={{ flex: 1 }}>
-              <Type style={{ fontFamily: f.bold, fontSize: 14 }}>A little tap of delight</Type>
-              <Type kind="caption">Gentle haptics when you snap and save.</Type>
+              <Type style={{ fontFamily: f.bold, fontSize: 14 }}>Haptic feedback</Type>
             </View>
             <Switch
               accessibilityLabel="Enable haptics"
@@ -163,14 +145,13 @@ export default function SettingsScreen() {
           />
         </Card>
         <Card padding={22} style={{ gap: 16 }}>
-          <Head icon={ShieldCheck} title="Your memories belong to you" />
+          <Head title="Your data" />
           <Type kind="small" style={{ fontSize: 14, lineHeight: 21 }}>
-            Photos, notes, and carb details are saved on this device. No account needed. You can
-            remove a memory by opening its card.
+            Meals and photos are saved on this device. No account needed.
           </Type>
           <Type kind="caption">
-            Clearing browser data or uninstalling the app removes your local journal. Exported meal
-            details include portions and notes; photos stay on this device.
+            Exports include meal details without photos. Clearing app or browser data removes your
+            journal.
           </Type>
           <Button
             label="Export meal details"
@@ -183,8 +164,7 @@ export default function SettingsScreen() {
         </Card>
         <Card padding={22} style={{ gap: 16 }}>
           <Head
-            icon={ScanLine}
-            title="A closer look at your plate"
+            title="Photo estimates"
             trailing={
               <Chip
                 color={analysisUrl ? c.limeSoft : c.lavender}
@@ -196,8 +176,8 @@ export default function SettingsScreen() {
           />
           <Type kind="small" style={{ fontSize: 14, lineHeight: 21 }}>
             {analysisUrl
-              ? 'New snaps and imported photos go to your Carbsy service and its AI provider, which identifies the foods and portions. Each food is then matched to USDA FoodData Central (FNDDS and SR Legacy) so nutrition comes from measured composition data, not the AI’s memory. Barcodes are looked up in USDA Branded Foods and Open Food Facts. Photos still can’t reveal exact portions or hidden ingredients, so quick checks ask about what matters most.'
-              : 'You can save photos and enter carbs and calories from a nutrition label right now. Connect photo estimates to fill in new snaps automatically.'}
+              ? 'Photos go to your Carbsy service and AI provider to estimate foods and portions. Nutrition is matched to USDA data. Review estimates before saving.'
+              : 'Photo estimates aren’t connected. Enter nutrition from a label to save a meal.'}
           </Type>
           {analysisUrl && (
             <Button
@@ -220,15 +200,6 @@ export default function SettingsScreen() {
             alone for medication decisions.
           </Type>
         </Card>
-        <View style={s.about}>
-          <Mascot size={76} happy />
-          <View style={{ flex: 1 }}>
-            <Type kind="heading">Little snaps. A little more clarity.</Type>
-            <Type kind="caption" style={{ marginTop: 4 }}>
-              Carbsy · version 1.0 · Made for the way you live.
-            </Type>
-          </View>
-        </View>
       </View>
     </>
   );
@@ -236,14 +207,6 @@ export default function SettingsScreen() {
 
 const s = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: c.lavender,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -261,12 +224,4 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   status: { padding: 14, borderRadius: radius.md, backgroundColor: c.surfaceAlt },
-  about: {
-    padding: 22,
-    backgroundColor: c.lavender,
-    borderRadius: radius.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 18,
-  },
 });

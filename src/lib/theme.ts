@@ -1,21 +1,19 @@
-import { cubicBezier } from 'react-native-reanimated';
 import type { ViewStyle } from 'react-native';
 
-// A cool, high-contrast palette: deep ink on a soft violet-grey canvas, one vivid accent,
-// and a few bright signal tones. Every surface floats on shadow rather than a hairline border.
+// Neutral surfaces and a single violet accent keep the food and numbers in focus.
 export const colors = {
-  bg: '#F4F3F9',
+  bg: '#FAFAF9',
   surface: '#FFFFFF',
-  surfaceAlt: '#F8F7FC',
+  surfaceAlt: '#F4F4F2',
   ink: '#14121C',
   inkSoft: '#3E3A4D',
-  muted: '#7C788B',
+  muted: '#706D79',
   faint: '#B4B0C0',
-  line: '#ECEAF2',
-  purple: '#6B4EF6',
-  purpleDeep: '#4D33DB',
+  line: '#E9E8EC',
+  purple: '#6550C8',
+  purpleDeep: '#5341AB',
   purpleGlow: '#9A86FF',
-  lavender: '#EEEAFF',
+  lavender: '#F0EDF8',
   lavenderDeep: '#DCD4FF',
   lime: '#D9F56A',
   limeInk: '#3F5417',
@@ -37,7 +35,7 @@ export const fonts = {
   display: 'SpaceGrotesk_500Medium',
   displayBold: 'SpaceGrotesk_700Bold',
 };
-export const radius = { sm: 12, md: 16, lg: 22, xl: 28, xxl: 34, pill: 999 };
+export const radius = { sm: 10, md: 12, lg: 16, xl: 20, xxl: 24, pill: 999 };
 export const gradients = {
   purple: ['#8B6CFF', '#5B3FE8'] as const,
   purpleSoft: ['#F1EDFF', '#E4DDFF'] as const,
@@ -46,18 +44,15 @@ export const gradients = {
   photoTop: ['rgba(10,8,20,0.45)', 'rgba(10,8,20,0)'] as const,
   photoBottom: ['rgba(10,8,20,0)', 'rgba(10,8,20,0.78)'] as const,
 };
-// Elevation as layered shadows; `boxShadow` is supported natively since RN 0.76.
+// Subtle elevation is reserved for controls and overlays.
 export const shadow = {
   soft: {
-    boxShadow: '0 1px 2px rgba(20,18,28,0.04), 0 4px 14px rgba(20,18,28,0.05)',
+    boxShadow: '0 1px 2px rgba(20,18,28,0.03)',
   } as ViewStyle,
   card: {
-    boxShadow: '0 1px 2px rgba(20,18,28,0.04), 0 10px 30px rgba(20,18,28,0.07)',
+    boxShadow: '0 1px 3px rgba(20,18,28,0.04)',
   } as ViewStyle,
-  float: { boxShadow: '0 18px 44px rgba(20,18,28,0.16)' } as ViewStyle,
-  purple: { boxShadow: '0 10px 26px rgba(107,78,246,0.34)' } as ViewStyle,
-  lime: { boxShadow: '0 8px 22px rgba(217,245,106,0.45)' } as ViewStyle,
+  float: { boxShadow: '0 2px 12px rgba(20,18,28,0.07)' } as ViewStyle,
+  purple: { boxShadow: '0 1px 2px rgba(20,18,28,0.04)' } as ViewStyle,
+  lime: { boxShadow: '0 1px 2px rgba(20,18,28,0.04)' } as ViewStyle,
 };
-// Strong ease-out for UI; never ease-in on something the person is watching.
-// Reanimated CSS transitions only accept predefined strings or a cubicBezier() object, not a CSS string.
-export const easeOut = cubicBezier(0.23, 1, 0.32, 1);

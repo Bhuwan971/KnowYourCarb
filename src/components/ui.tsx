@@ -107,9 +107,9 @@ export function Button({
       style={[
         styles.button,
         { minHeight: height, paddingHorizontal: size === 'sm' ? 14 : 22 },
-        variant === 'primary' && [{ backgroundColor: c.purple }, !off && shadow.purple],
+        variant === 'primary' && { backgroundColor: c.purple },
         variant === 'secondary' && { backgroundColor: c.lavender },
-        variant === 'ghost' && { backgroundColor: c.white, ...shadow.soft },
+        variant === 'ghost' && { backgroundColor: 'transparent' },
         variant === 'danger' && { backgroundColor: c.pink },
         variant === 'dark' && { backgroundColor: c.ink },
         variant === 'lime' && [{ backgroundColor: c.lime }, !off && shadow.lime],
@@ -117,19 +117,7 @@ export function Button({
         style,
       ]}
     >
-      {variant === 'primary' ? (
-        <>
-          <LinearGradient
-            colors={[...gradients.purple]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[StyleSheet.absoluteFill, { borderRadius: radius.pill }]}
-          />
-          {content}
-        </>
-      ) : (
-        content
-      )}
+      {content}
     </PressableScale>
   );
 }
@@ -167,7 +155,6 @@ export function IconButton({
       disabled={disabled}
       onPress={onPress}
       hitSlop={6}
-      scaleTo={0.9}
       hoverStyle={{ opacity: 0.85 }}
       style={[
         styles.iconButton,
@@ -288,7 +275,7 @@ export function FoodPhoto({
   );
 }
 
-// A floating surface. No hairline borders anywhere: depth comes from shadow and tone.
+// Quiet surfaces separate related content without heavy elevation.
 export function Card({
   children,
   style,
@@ -305,7 +292,7 @@ export function Card({
       style={[
         styles.card,
         { padding },
-        tone === 'surface' && { backgroundColor: c.white, ...shadow.card },
+        tone === 'surface' && { backgroundColor: c.white },
         tone === 'tonal' && { backgroundColor: c.lavender },
         tone === 'dark' && { backgroundColor: c.night },
         tone === 'flat' && { backgroundColor: c.surfaceAlt },
@@ -368,7 +355,6 @@ export function Segmented<K extends string>({
             accessibilityState={{ selected: active }}
             accessibilityLabel={`${text} mode`}
             onPress={() => onChange(key)}
-            scaleTo={0.96}
             style={[
               styles.segment,
               active && { backgroundColor: dark ? c.lime : c.white, ...shadow.soft },
@@ -426,7 +412,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   button: {
-    borderRadius: radius.pill,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',

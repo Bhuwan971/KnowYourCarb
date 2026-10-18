@@ -85,7 +85,7 @@ test('camera shutter automatically scans a captured photo', async ({ page, conte
     await route.fulfill({ json: estimate });
   });
   await page.goto('/');
-  await expect(page.getByText('YOUR PLATE, IN FOCUS')).toBeVisible();
+  await expect(page.locator('video')).toBeVisible();
   const shutter = page.getByRole('button', { name: 'Snap a meal', exact: true });
   await expect(shutter).toBeEnabled();
   await expect

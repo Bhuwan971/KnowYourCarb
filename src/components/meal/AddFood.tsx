@@ -35,7 +35,6 @@ function Row({
       accessibilityRole="button"
       accessibilityLabel={`Add ${title}`}
       onPress={onPress}
-      scaleTo={0.985}
       style={s.row}
       hoverStyle={{ backgroundColor: c.surfaceAlt }}
     >

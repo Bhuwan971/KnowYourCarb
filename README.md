@@ -22,6 +22,7 @@ Use Node 22.13 or newer (Node 24 LTS recommended). Camera support requires a pho
 
 ## What works
 
+- On Today, take or upload a photo. Open **More options** for manual entry, samples, barcode scanning or descriptions.
 - Log a meal four ways: **snap a photo** (or import one), **scan a barcode**, **describe it** in words ("2 slices of pepperoni pizza and a coke"), or **type it in** with USDA food search.
 - Returning to the mobile home screen opens a live camera once permission has been granted.
 - Every food shows **where its numbers came from** (USDA, label, barcode, AI guess or you) and **how solid the estimate is** (solid / good guess / rough guess), with a likely carb range for the whole meal.
@@ -29,7 +30,7 @@ Use Node 22.13 or newer (Node 24 LTS recommended). Camera support requires a pho
 - Tap a food to swap look-alikes, pick a USDA household portion, change portions eaten in quarter steps, enter a weight, or override any value.
 - "Not quite right?" rescans with your note ("brown rice, about half eaten").
 - **Having it again?** logs a past meal in one tap with your corrections. Search also offers your own past foods.
-- Try the animated sample scan immediately, without configuring any services. Samples use real USDA records and are excluded from all real totals.
+- Open a sample meal immediately, without configuring any services. Samples use real USDA records and are excluded from all real totals.
 - Browse, search, filter, reopen, edit and delete memories. View seven days of logged carbs. Set an optional personal daily reference; no target is prescribed.
 - Customize your greeting and haptics. Export meal details as JSON (photos are excluded).
 - Photos and journal data persist locally across restarts. No account is needed.
@@ -145,7 +146,7 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npx playwright install chromium
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ui
 ```
 
-The browser tests cover phone and desktop layouts, sample animation, manual calculations, import, persistence after reload, edit/delete/discard, search, and preferences. Physical camera capture and native haptics still need a real-device test in Expo Go.
+The browser tests cover phone and desktop layouts, sample meals, manual calculations, import, persistence after reload, edit/delete/discard, search, and preferences. Physical camera capture and native haptics still need a real-device test in Expo Go.
 
 Six additional mocked AI browser tests check automatic import and camera scans, editable calorie totals and persistence, compact results, nutrient edits, weight scaling, cancellation, retries, and incomplete-result fallback. To run them, start a second Expo preview with `EXPO_PUBLIC_ANALYSIS_URL=http://localhost:3001 npx expo start --web --port 8082`, then run `PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ai`. These tests intercept requests; they don't call a provider.
 

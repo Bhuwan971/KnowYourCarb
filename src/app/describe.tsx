@@ -14,15 +14,12 @@ import { newMeal } from '../lib/model';
 import { analysisUrl } from '../lib/analysis';
 import { colors as c, fonts as f, radius, shadow } from '../lib/theme';
 import { Button, IconButton, Type } from '../components/ui';
-import { Mascot } from '../components/Mascot';
 import { PressableScale } from '../components/PressableScale';
 import { useApp } from '../state/AppProvider';
 
 const examples = [
   '2 slices of pepperoni pizza and a regular coke',
   'Chicken burrito bowl with rice, black beans and salsa',
-  'Bowl of oatmeal with a banana and a spoon of honey',
-  '1 cup of white rice with dal and a chapati',
 ];
 
 export default function DescribeScreen() {
@@ -50,7 +47,6 @@ export default function DescribeScreen() {
         </View>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
           <View style={{ alignItems: 'center', gap: 10 }}>
-            <Mascot size={84} happy />
             <Type kind="title" style={{ textAlign: 'center' }}>
               What did you eat?
             </Type>

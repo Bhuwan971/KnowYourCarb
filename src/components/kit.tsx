@@ -1,56 +1,28 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { StyleProp, StyleSheet, TextStyle, View } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
 import { BadgeCheck, Barcode, Database, PencilLine, Sparkles, Tag } from 'lucide-react-native';
 import { Confidence, FoodItem } from '../lib/model';
 import { colors as c, fonts as f, radius } from '../lib/theme';
 import { Type } from './ui';
 
-const ease = (t: number) => 1 - Math.pow(1 - t, 4);
-// A number that settles into its new value. Only re-renders itself; instant with reduced motion.
-export function CountUp({
+// Nutrition values update immediately, without counting through intermediate values.
+export function NumberValue({
   value,
   decimals = 0,
   style,
-  from,
-  duration = 650,
   prefix = '',
 }: {
   value: number | null;
   decimals?: number;
   style?: StyleProp<TextStyle>;
-  from?: number;
-  duration?: number;
   prefix?: string;
 }) {
-  const reduced = useReducedMotion();
-  const target = value ?? NaN;
-  const [shown, setShown] = useState(() => (Number.isFinite(from) ? from! : target));
-  const last = useRef(shown);
-  useEffect(() => {
-    if (!Number.isFinite(target) || reduced || !Number.isFinite(last.current)) {
-      last.current = target;
-      setShown(target);
-      return;
-    }
-    const start = last.current;
-    if (start === target) return;
-    const begin = Date.now();
-    let frame: number;
-    const tick = () => {
-      const t = Math.min(1, (Date.now() - begin) / duration);
-      const next = start + (target - start) * ease(t);
-      last.current = next;
-      setShown(next);
-      if (t < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [target, reduced, duration]);
   const factor = 10 ** decimals;
   return (
     <Type style={style}>
-      {Number.isFinite(shown) ? `${prefix}${Math.round(shown * factor) / factor}` : '—'}
+      {value !== null && Number.isFinite(value)
+        ? `${prefix}${Math.round(value * factor) / factor}`
+        : '—'}
     </Type>
   );
 }

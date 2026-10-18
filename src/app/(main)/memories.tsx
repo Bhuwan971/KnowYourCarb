@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { Camera, Search, X } from 'lucide-react-native';
+import { Camera, Search, SlidersHorizontal, X } from 'lucide-react-native';
 import { useApp } from '../../state/AppProvider';
 import { colors as c, fonts as f, radius, shadow } from '../../lib/theme';
 import { dailyTotal, localDay, Meal } from '../../lib/model';
 import { PageHeading } from '../../components/Shell';
-import { Button, Chip, Type } from '../../components/ui';
+import { Button, Type } from '../../components/ui';
 import { MemoryCard } from '../../components/MemoryCard';
-import { Mascot } from '../../components/Mascot';
 
 const filters = ['All', 'Today', 'This week', 'Samples'] as const;
 type Filter = (typeof filters)[number];
@@ -16,10 +15,11 @@ type Filter = (typeof filters)[number];
 export default function MemoriesScreen() {
   const { meals } = useApp();
   const width = useWindowDimensions().width;
-  const columns = width >= 1350 ? 3 : width >= 680 ? 2 : 1;
+  const columns = width >= 1000 ? 2 : 1;
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('All');
   const [focused, setFocused] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const now = new Date();
   const oldest = new Date(now);
   oldest.setDate(now.getDate() - 6);
@@ -57,83 +57,97 @@ export default function MemoriesScreen() {
   return (
     <>
       <PageHeading
-        eyebrow="The moments you keep"
         title="Memories"
-        subtitle="Your photos, your portions, your story. All right here."
         action={
-          width >= 650 ? (
+          width >= 650 && meals.length ? (
             <Button label="New snap" icon={Camera} onPress={() => router.navigate('/capture')} />
           ) : undefined
         }
       />
-      <View style={s.tools}>
-        <View style={[s.search, focused && s.searchFocused]}>
-          <Search size={18} color={focused ? c.purple : c.muted} strokeWidth={2.2} />
-          <TextInput
-            accessibilityLabel="Search memories"
-            placeholder="Find a meal, a food, a note…"
-            placeholderTextColor={c.faint}
-            value={search}
-            onChangeText={setSearch}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            style={{ flex: 1, fontFamily: f.medium, fontSize: 15, color: c.ink, height: 52 }}
-          />
-          {!!search && (
+      {!!meals.length && (
+        <View style={s.tools}>
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            <View style={[s.search, { flex: 1 }, focused && s.searchFocused]}>
+              <Search size={18} color={focused ? c.purple : c.muted} strokeWidth={2.2} />
+              <TextInput
+                accessibilityLabel="Search memories"
+                placeholder="Search meals"
+                placeholderTextColor={c.faint}
+                value={search}
+                onChangeText={setSearch}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                style={{ flex: 1, fontFamily: f.medium, fontSize: 15, color: c.ink, height: 52 }}
+              />
+              {!!search && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                  onPress={() => setSearch('')}
+                  hitSlop={8}
+                >
+                  <X size={16} color={c.muted} />
+                </Pressable>
+              )}
+            </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Clear search"
-              onPress={() => setSearch('')}
-              hitSlop={8}
+              accessibilityLabel="Filter memories"
+              aria-expanded={showFilters}
+              accessibilityState={{ expanded: showFilters }}
+              onPress={() => setShowFilters(!showFilters)}
+              style={{
+                minHeight: 48,
+                minWidth: 44,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+              }}
             >
-              <X size={16} color={c.muted} />
+              <SlidersHorizontal size={19} color={filter === 'All' ? c.muted : c.purple} />
+              {filter !== 'All' && (
+                <Type kind="caption" style={{ color: c.purple }}>
+                  {filter}
+                </Type>
+              )}
             </Pressable>
+          </View>
+          {showFilters && (
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {filters.map((label) => {
+                const active = filter === label;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    key={label}
+                    onPress={() => setFilter(label)}
+                    style={({ pressed }) => [
+                      s.filter,
+                      active && { backgroundColor: c.ink },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Type
+                      style={{
+                        fontFamily: f.bold,
+                        fontSize: 13,
+                        color: active ? c.white : c.inkSoft,
+                      }}
+                    >
+                      {label}
+                    </Type>
+                  </Pressable>
+                );
+              })}
+            </View>
           )}
         </View>
-        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          {filters.map((label) => {
-            const active = filter === label;
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                key={label}
-                onPress={() => setFilter(label)}
-                style={({ pressed }) => [
-                  s.filter,
-                  active && { backgroundColor: c.ink },
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <Type
-                  style={{
-                    fontFamily: f.bold,
-                    fontSize: 13,
-                    color: active ? c.white : c.inkSoft,
-                  }}
-                >
-                  {label}
-                </Type>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
+      )}
       {!filtered.length ? (
         <View style={s.empty}>
-          <View style={s.emptyCircle}>
-            <Mascot size={120} happy />
-          </View>
-          <Chip color={c.limeSoft} textColor={c.limeInk}>
-            ROOM FOR SOMETHING GOOD
-          </Chip>
           <Type kind="title" style={{ textAlign: 'center', marginTop: 18 }}>
-            {meals.length ? 'No little matches yet.' : 'Your first memory starts here.'}
-          </Type>
-          <Type kind="small" style={{ maxWidth: 340, textAlign: 'center', marginTop: 10 }}>
-            {meals.length
-              ? 'Try another search or filter. Your other memories are still here.'
-              : 'Breakfast, that perfect lunch, a snack on the go. Give your next bite a little place to stay.'}
+            {meals.length ? 'No meals found.' : 'No saved meals yet.'}
           </Type>
           <Button
             label={meals.length ? 'Show all memories' : 'Take your first snap'}
@@ -165,10 +179,7 @@ export default function MemoriesScreen() {
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
                 {entries.map((meal) => (
-                  <View
-                    key={meal.id}
-                    style={{ width: columns === 1 ? '100%' : columns === 2 ? '48.5%' : '32%' }}
-                  >
+                  <View key={meal.id} style={{ width: columns === 1 ? '100%' : '48.5%' }}>
                     <MemoryCard meal={meal} onPress={() => router.navigate(`/memory/${meal.id}`)} />
                   </View>
                 ))}
@@ -197,11 +208,10 @@ const s = StyleSheet.create({
   searchFocused: { borderColor: c.purple },
   filter: {
     paddingHorizontal: 15,
-    minHeight: 38,
+    minHeight: 44,
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: c.white,
-    ...shadow.soft,
+    backgroundColor: c.surfaceAlt,
   },
   dayRow: {
     flexDirection: 'row',
@@ -220,13 +230,4 @@ const s = StyleSheet.create({
     borderRadius: radius.pill,
   },
   empty: { paddingVertical: 50, alignItems: 'center' },
-  emptyCircle: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: c.lavender,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 26,
-  },
 });
