@@ -14,6 +14,6 @@ Photos, descriptions, and correction notes sent for analysis reach the configure
 
 ## Deployment boundary
 
-The bundled service is for local development on a trusted network. It binds to the LAN and has no authentication; CORS does not authenticate native clients. Do not expose it to the internet or an untrusted network with funded provider keys. Public deployment requires authentication and authorization, HTTPS, abuse and spend controls, durable rate limiting, and a deployment-specific privacy review.
+The bundled service is for local development on a trusted network. It binds to loopback by default, and explicit LAN mode has no authentication; CORS does not authenticate native clients. Do not expose it to the internet or an untrusted network with funded provider keys. The service refuses production mode. Future account-free public deployment requires verified anonymous access, HTTPS, abuse and spend controls, durable rate limiting, and a deployment-specific privacy review.
 
 The project has no supported production release or security backport policy yet. Dependency findings and the scope of the publication review are recorded in `docs/open-source-review.md`. Publishing source is not a production security certification.

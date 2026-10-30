@@ -19,7 +19,7 @@ async function runScript(script, args, port) {
     process.execPath,
     [fileURLToPath(new URL(script, import.meta.url)), ...args],
     {
-      env: { ...process.env, PORT: String(port) },
+      env: { ...process.env, PORT: String(port), SERVICE_HOST: '0.0.0.0' },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   );
@@ -89,4 +89,14 @@ test('direct service startup handles a bind conflict without an unhandled stack 
     assert.match(result.output, /Photo service port .* already in use/);
     assert.doesNotMatch(result.output, /Unhandled 'error'|node:events|at Server/);
   });
+});
+
+test('local service defaults to loopback and refuses production mode', async () => {
+  const { serviceRuntime } = await import('../server/runtime.mjs');
+  assert.deepEqual(serviceRuntime({}), { host: '127.0.0.1', port: 3001 });
+  assert.equal(serviceRuntime({ SERVICE_HOST: '0.0.0.0' }).host, '0.0.0.0');
+  assert.throws(() => serviceRuntime({ NODE_ENV: 'production' }), /Public hosting is not enabled/);
+  for (const PORT of ['0', '65536', 'wat', '3.5'])
+    assert.throws(() => serviceRuntime({ PORT }), /PORT must/);
+  assert.throws(() => serviceRuntime({ SERVICE_HOST: 'example.com' }), /SERVICE_HOST/);
 });

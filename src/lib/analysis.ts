@@ -10,7 +10,8 @@ import {
   uid,
 } from './model';
 import { withAbort } from './abort';
-export const analysisUrl = process.env.EXPO_PUBLIC_ANALYSIS_URL?.replace(/\/$/, '');
+export const analysisUrl =
+  process.env.EXPO_PUBLIC_ANALYSIS_URL?.trim().replace(/\/$/, '') || undefined;
 // Allow photo preparation/upload in addition to the service's 90-second deadline.
 export const scanTimeoutMs = 120_000;
 export type Analysis = {

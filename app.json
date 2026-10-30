@@ -7,10 +7,16 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.knowyourcarb.carbsy" },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.knowyourcarb.carbsy"
+    },
     "android": {
       "package": "com.knowyourcarb.carbsy",
-      "adaptiveIcon": { "foregroundImage": "./assets/icon.png", "backgroundColor": "#EDE7FF" },
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#EDE7FF"
+      },
       "blockedPermissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
@@ -23,7 +29,10 @@
       "expo-router",
       [
         "expo-camera",
-        { "cameraPermission": "Let Carbsy take a snap of your food.", "recordAudioAndroid": false }
+        {
+          "cameraPermission": "Let Carbsy take a snap of your food.",
+          "recordAudioAndroid": false
+        }
       ],
       [
         "expo-image-picker",
@@ -31,7 +40,8 @@
           "photosPermission": "Choose a food photo for your Carbsy journal.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-splash-screen"
     ]
   }
 }

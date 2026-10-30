@@ -12,6 +12,7 @@ const entries = [
 const host =
   entries.find((entry) => entry.family === 'IPv4' && !entry.internal)?.address || '127.0.0.1';
 const incoming = process.argv.slice(2);
+const lan = incoming.includes('--lan');
 const useInfisical = incoming.includes('--infisical');
 const serverOnly = incoming.includes('--server-only');
 const args = incoming.filter((arg) => !['--infisical', '--server-only'].includes(arg));
@@ -25,7 +26,8 @@ const origins = [
     `http://${host}:${expoPort}`,
   ]),
 ].join(',');
-const analysisUrl = process.env.EXPO_PUBLIC_ANALYSIS_URL || `http://${host}:${port}`;
+const analysisUrl =
+  process.env.EXPO_PUBLIC_ANALYSIS_URL || `http://${lan ? host : 'localhost'}:${port}`;
 try {
   await assertPortAvailable(port, 'Photo service');
   if (!serverOnly) await assertPortAvailable(Number(expoPort), 'Expo');
@@ -33,20 +35,31 @@ try {
   console.error(error.message);
   process.exit(1);
 }
+if (lan)
+  console.warn('LAN mode: use a trusted Wi-Fi network. The photo service has no authentication.');
 const server = spawn(
   useInfisical ? 'infisical' : process.execPath,
   useInfisical ? infisicalArgs() : ['server/index.mjs'],
   {
     stdio: 'inherit',
-    env: { ...process.env, PORT: String(port), ALLOWED_ORIGINS: origins },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      ALLOWED_ORIGINS: origins,
+      SERVICE_HOST: lan ? '0.0.0.0' : '127.0.0.1',
+    },
   },
 );
 const expo = serverOnly
   ? undefined
-  : spawn(process.execPath, ['node_modules/expo/bin/cli', 'start', ...args], {
-      stdio: 'inherit',
-      env: expoEnvironment(process.env, analysisUrl),
-    });
+  : spawn(
+      process.execPath,
+      ['node_modules/expo/bin/cli', 'start', ...(lan ? [] : ['--localhost']), ...args],
+      {
+        stdio: 'inherit',
+        env: expoEnvironment(process.env, analysisUrl),
+      },
+    );
 let stopping = false;
 const stop = (code = 0) => {
   if (stopping) return;

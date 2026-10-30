@@ -28,7 +28,7 @@ README setup now starts from a fresh clone. CONTRIBUTING.md and SECURITY.md desc
 - Secret scan of available history and publishable working files: passed with the documented exact-value false-positive exception.
 - Browser/device tests were not rerun for these repository/documentation changes. Hosted GitHub Actions cannot be confirmed until the changes are pushed.
 
-## Dependency findings still open
+## Original dependency findings (superseded by the follow-up below)
 
 `npm audit` on 2026-10-29 reported 15 affected dependency entries: 7 high, 3 moderate, 5 low, 0 critical. Counts include parent packages affected through their dependencies; these are not 15 distinct root vulnerabilities.
 
@@ -48,3 +48,22 @@ No dependency upgrades or overrides were applied in this preparation. Audit prop
 2. Confirm the hosted checks pass on the exact commit being published. Fetch and scan any additional branches/tags you intend to expose.
 3. Enable GitHub private vulnerability reporting, secret scanning/push protection where available, and dependency alerts. These account/repository settings were not changed by this review.
 4. Publish the source with the documented development status and dependency findings. Publicly hosting the analysis service requires authentication, HTTPS, abuse/spend controls, and a separate deployment review.
+
+## Local release hardening follow-up — 2026-10-29
+
+Scope was clarified to local use for now. Future public access will be account-free, with deployment and anonymous abuse controls deferred. This is not a public-production approval.
+
+Changes:
+
+- Upgraded to Expo SDK 58, React Native 0.88.1, React 19.3, and SDK-compatible modules. The regenerated npm lockfile removes the vulnerable `decode-uri-component` chain; `node-forge` is 1.4.2 and Xcode tooling no longer depends on the affected UUID version. No forced major dependency overrides are used.
+- Migrated web safe-area spacing to CSS, retaining native safe-area handling.
+- The service and launcher bind to loopback by default. Phone testing uses explicit `npm run start:lan` or `npm run start:infisical -- --lan`. Standalone LAN binding uses `SERVICE_HOST=0.0.0.0`. Only use this mode on trusted Wi-Fi.
+- The service rejects `NODE_ENV=production`. This prevents accidental production-mode startup; it is not an authentication mechanism or a substitute for network isolation.
+- Two concurrent uploads/scans maximum, a 15-second upload deadline, malformed-URL handling, invalid host/port validation, and bounded graceful shutdown reduce accidental resource exhaustion. Existing provider deadlines, request size limits, and rate limits remain in place.
+- Browser suites use full Chromium and start isolated previews with deterministic AI configuration, without reading `.env`. CI also exports iOS, Android, and web bundles.
+
+Current dependency status: `npm audit` reports **8 affected entries (3 high, 5 low)**, rooted in two upstream issues. Zod 3.25.76 remains under Expo CLI's dev-tools schemas; the upstream fix is Zod 4.6.6+, which is outside that dependency's supported major range. deepmerge 4.3.1 remains in Expo configuration merging, with no patched upstream version listed. The Node analysis service imports neither dependency. Keep development tooling local and process only trusted project/plugin configuration. These findings remain visible and must be revisited before any public rollout; a successful build does not prove absence of vulnerabilities.
+
+Native signing, app-store submissions, physical-device testing, actual provider accuracy, public hosting, verification of anonymous clients, durable quotas, and provider spend enforcement are not completed by this local work.
+
+Follow-up validation: production JavaScript exports for iOS, Android, and web pass (not signed native builds); lint and typecheck pass; Expo Doctor passes 20/20 checks; 65 Node tests, 10 phone/desktop browser tests, and 8 mocked AI browser tests pass. A fresh `npm ci --ignore-scripts` reproduces the lockfile. Gitleaks finds no credentials in the publishable working files or 14 available commits. Browser testing also identified and fixed empty service-URL handling in local mode. The Chromium headless-shell runtime on this machine crashed in its GPU helper, so both suites now use full Chromium. These tests do not call real AI providers.

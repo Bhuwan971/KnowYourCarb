@@ -1,6 +1,7 @@
 import React from 'react';
+import '../safe-area.css';
 import { Stack } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
@@ -99,6 +100,8 @@ function Routes() {
   );
 }
 
+const InsetsProvider = Platform.OS === 'web' ? React.Fragment : SafeAreaProvider;
+
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     DMSans_400Regular,
@@ -108,7 +111,7 @@ export default function RootLayout() {
     SpaceGrotesk_700Bold,
   });
   return (
-    <SafeAreaProvider>
+    <InsetsProvider>
       <StatusBar style="dark" />
       {loaded || error ? (
         <AppProvider>
@@ -119,6 +122,6 @@ export default function RootLayout() {
           <LogoMark size={64} />
         </Centered>
       )}
-    </SafeAreaProvider>
+    </InsetsProvider>
   );
 }

@@ -1,20 +1,32 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { estimate, validateInput } from './analysis.mjs';
+import { serviceRuntime } from './runtime.mjs';
 import { analysisConfig } from './config.mjs';
 import { foodCount, getFood, searchFoods } from './foods.mjs';
 import { lookupBarcode, searchBranded } from './sources.mjs';
 const MAX_BODY = 6_100_000;
-function readJson(req) {
+function readJson(req, uploadTimeoutMs) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     let failed = false;
+    const timer = setTimeout(() => {
+      failed = true;
+      chunks.length = 0;
+      reject(Object.assign(new Error('Upload took too long. Please try again.'), { status: 408 }));
+    }, uploadTimeoutMs);
+    timer.unref();
+    const clear = () => clearTimeout(timer);
+    req.once('end', clear);
+    req.once('error', clear);
+    req.once('aborted', clear);
     req.on('data', (chunk) => {
       if (failed) return;
       size += chunk.length;
       if (size > MAX_BODY) {
         failed = true;
+        clear();
         chunks.length = 0;
         reject(
           Object.assign(new Error('This photo is too large. Please use a smaller photo.'), {
@@ -51,11 +63,18 @@ export function createApp({
   fetchImpl = fetch,
   now = Date.now,
   timeoutMs,
+  uploadTimeoutMs = 15_000,
 } = {}) {
+  serviceRuntime();
   const limits = new Map();
+  let activeScans = 0;
   const server = createServer(async (req, res) => {
     const send = (status, data) => {
       if (res.writableEnded || res.destroyed) return;
+      if (status === 408 || status === 413) {
+        res.setHeader('Connection', 'close');
+        res.once('finish', () => req.destroy());
+      }
       res.writeHead(status, {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store',
@@ -79,7 +98,12 @@ export function createApp({
       res.end();
       return;
     }
-    const url = new URL(req.url, 'http://localhost');
+    let url;
+    try {
+      url = new URL(req.url, 'http://localhost');
+    } catch {
+      return send(400, { error: 'Invalid request URL.' });
+    }
     if (url.pathname === '/health' && req.method === 'GET') {
       send(200, {
         ok: true,
@@ -167,13 +191,19 @@ export function createApp({
       req.resume();
       return;
     }
+    // Bound total uploads and paid scans, including clients using different addresses.
+    if (activeScans >= 2) {
+      res.setHeader('Retry-After', '5');
+      return send(429, { error: 'Two scans are already running. Please try again shortly.' });
+    }
+    activeScans++;
     const controller = new AbortController();
     const cancel = () => {
       if (!res.writableEnded) controller.abort();
     };
     res.on('close', cancel);
     try {
-      const body = await readJson(req);
+      const body = await readJson(req, uploadTimeoutMs);
       const input = validateInput(body);
       send(
         200,
@@ -198,6 +228,7 @@ export function createApp({
             : 'The photo service is unavailable. You can still save your snap manually.',
       });
     } finally {
+      activeScans--;
       res.off('close', cancel);
     }
   });
@@ -206,8 +237,15 @@ export function createApp({
   return server;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  let runtime;
+  try {
+    runtime = serviceRuntime();
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
   const server = createApp();
-  const port = Number(process.env.PORT || 3001);
+  const { host, port } = runtime;
   server.once('error', (error) => {
     console.error(
       error.code === 'EADDRINUSE'
@@ -216,9 +254,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     );
     process.exitCode = 1;
   });
-  server.listen(port, '0.0.0.0', () =>
+  server.listen(port, host, () =>
     console.log(
       `Carbsy local photo service: http://localhost:${port}\nPhoto estimates: ${analysisConfig().apiKey ? `configured (${analysisConfig().provider})` : 'not configured (manual journal works)'}`,
     ),
   );
+  const stop = () => {
+    server.close();
+    setTimeout(() => server.closeAllConnections(), 5000).unref();
+  };
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
 }

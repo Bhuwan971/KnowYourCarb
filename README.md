@@ -1,8 +1,8 @@
 # Carbsy · KnowYourCarb
 
-A camera-first carb journal with a playful little personality. Built from scratch with TypeScript, React Native, and Expo SDK 57, for iOS, Android, and the web.
+A camera-first carb journal with a playful little personality. Built from scratch with TypeScript, React Native, and Expo SDK 58, for iOS, Android, and the web.
 
-## Try it on your phone
+## Run locally
 
 Install [Node.js](https://nodejs.org/) 22.13 or newer (Node 24 recommended), then run these commands in your clone:
 
@@ -12,7 +12,7 @@ cp .env.example .env
 npm start
 ```
 
-Open **Expo Go** on your phone and scan the QR code. Keep your computer and phone on the same Wi-Fi. Use an Expo Go version that supports SDK 57. On iPhone, Expo may require signing into the same Expo account on the CLI and Expo Go. See the [Expo setup guide](https://docs.expo.dev/tutorial/create-your-first-app/) and [compatible Expo Go versions](https://expo.dev/go).
+For phone testing on a trusted Wi-Fi network, use `npm run start:lan` instead of `npm start`. Open **Expo Go** on your phone and scan the QR code. Keep your computer and phone on the same Wi-Fi. Use an Expo Go version that supports SDK 58. On iPhone, Expo may require signing into the same Expo account on the CLI and Expo Go. See the [Expo setup guide](https://docs.expo.dev/tutorial/create-your-first-app/) and [compatible Expo Go versions](https://expo.dev/go).
 
 For a browser preview:
 
@@ -81,7 +81,7 @@ To change scope, use `INFISICAL_ENV` and `INFISICAL_SECRET_PATH` in the local `.
 
 Copy `.env.example` to `.env`, set `OPENROUTER_API_KEY`, and run `npm start` or `npm run web`. Direct Gemini remains available by setting `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, and optionally `GEMINI_MODEL` (default `gemini-3.8-flash`). Keep all provider keys server-only.
 
-The launcher starts Expo and the service together and automatically uses your computer's Wi-Fi address for phone requests. Keep your phone and computer on the same Wi-Fi. With multiple network adapters, override `EXPO_PUBLIC_ANALYSIS_URL=http://YOUR_WIFI_IP:3001`. Remote photo services can also use this variable; Expo tunnels forward Expo only, so remote testing needs an accessible analysis service.
+The launcher starts Expo and the service together on localhost by default. Pass `--lan` (for example `npm run start:infisical -- --lan`) to use your computer's Wi-Fi address for phone requests. Keep your phone and computer on the same Wi-Fi. With multiple network adapters, override `EXPO_PUBLIC_ANALYSIS_URL=http://YOUR_WIFI_IP:3001`. Remote photo services can also use this variable; Expo tunnels forward Expo only, so remote testing needs an accessible analysis service.
 
 Missing keys, exhausted credits, unrecognizable food, and service errors show a clear retry/manual fallback. A real provider scan still requires your Infisical project, login, and OpenRouter key. Tests use mocked responses; no credentials or provider credits are used by the test suites.
 
@@ -89,7 +89,7 @@ Scans use low reasoning effort and retain nutrition validation. The service give
 
 The service uses the [OpenRouter Chat Completions API](https://openrouter.ai/docs/guides/overview/multimodal/image-understanding) or the [Gemini Interactions API](https://ai.google.dev/api/interactions-api). It validates input and nutrition results, limits request size and rate, and times out requests. Gemini interaction storage is disabled; OpenRouter provider routing disallows data collection. These settings are not a guarantee of zero retention across every service.
 
-This is a **local development server** bound to your LAN for phone testing. Before public hosting, add authentication, HTTPS, persistent/distributed rate limiting, monitoring, and a reviewed privacy policy. CORS is configured for local browser preview; edit `ALLOWED_ORIGINS` if you use a different browser origin. Native requests do not use browser CORS. Hosting, cloud accounts, and provider billing are not set up.
+This is a **local development server** bound to loopback by default. LAN exposure requires `--lan` in the launcher, or `SERVICE_HOST=0.0.0.0` for a standalone service, and should only be used on trusted Wi-Fi. The service refuses `NODE_ENV=production` until public hosting controls are implemented. At most two uploads/scans run concurrently; incomplete uploads time out after 15 seconds. Before public hosting, add authentication, HTTPS, persistent/distributed rate limiting, monitoring, and a reviewed privacy policy. CORS is configured for local browser preview; edit `ALLOWED_ORIGINS` if you use a different browser origin. Native requests do not use browser CORS. Hosting, cloud accounts, and provider billing are not set up.
 
 ## Accuracy and data
 
@@ -141,7 +141,7 @@ npm test
 
 The calculation tests cover fractional servings, zero versus missing carbs, local dates, and sample exclusion. Server tests use mocked provider responses to cover missing credentials, malformed data, unrecognizable food, CORS, and safe upstream errors. Real provider output requires a supplied key and hasn't been validated with clinical or weighed-meal benchmarks.
 
-For browser interaction tests, keep `npm run web` running on port 8081:
+Browser suites start and stop their own isolated localhost previews; leave ports 8081 and 8082 free. Install Chromium once, then run:
 
 ```sh
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npx playwright install chromium
@@ -150,13 +150,13 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ui
 
 The browser tests cover phone and desktop layouts, sample meals, manual calculations, import, persistence after reload, edit/delete/discard, search, and preferences. Physical camera capture and native haptics still need a real-device test in Expo Go.
 
-Six additional mocked AI browser tests check automatic import and camera scans, editable calorie totals and persistence, compact results, nutrient edits, weight scaling, cancellation, retries, and incomplete-result fallback. To run them, start a second Expo preview with `EXPO_PUBLIC_ANALYSIS_URL=http://localhost:3001 npx expo start --web --port 8082`, then run `PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ai`. These tests intercept requests; they don't call a provider.
+Eight additional mocked AI browser tests check automatic import and camera scans, editable calorie totals and persistence, compact results, nutrient edits, weight scaling, cancellation, retries, and incomplete-result fallback. To run them, use `PLAYWRIGHT_BROWSERS_PATH="$PWD/.playwright" npm run test:ai`. These tests intercept requests; they don't call a provider.
 
-The Node suite (62 tests) covers USDA grounding with the real bundled database, household-portion weights, cross-check flags, alternatives, label bypass, matcher safety, text input, barcode sources, food search, deadlines and secret isolation. The phone/desktop interaction suite has 8 tests, and the mocked AI suite has 8 tests.
+The Node suite (65 tests) covers USDA grounding with the real bundled database, household-portion weights, cross-check flags, alternatives, label bypass, matcher safety, text input, barcode sources, food search, deadlines and secret isolation. The phone/desktop interaction suite has 10 tests, and the mocked AI suite has 8 tests.
 
 To work on the UI without AI credits, `node scripts/mock-service.mjs` runs the real service with a canned "AI": database search, USDA grounding, barcodes and validation are real. Then start Expo with `EXPO_PUBLIC_ANALYSIS_URL=http://localhost:3001 npx expo start --web`. Browser camera coverage uses a simulated camera feed. Actual provider accuracy and physical-device camera/haptics have not been verified.
 
-The SDK 57 dependency tree currently reports npm audit advisories inherited through Expo/React Native and their tooling. This is a local development app; dependency remediation should be reviewed before release. Avoid `npm audit fix --force`, which suggests incompatible SDK downgrades. The dependency lockfile is included.
+The SDK 58 update removes the vulnerable router URL decoder and updates the certificate and Xcode dependencies. The current audit still reports 8 affected entries (3 high, 5 low), rooted in Zod 3 and deepmerge in Expo tooling. These are documented in the publication review; no unsafe major-version overrides are applied. Keep development servers private and avoid `npm audit fix --force`. The lockfile is included.
 
 ## Project layout
 

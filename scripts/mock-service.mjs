@@ -1,3 +1,4 @@
+import { serviceRuntime } from '../server/runtime.mjs';
 // UI development without AI credits: the photo service with a canned "AI" for perception and
 // matching. Database search, USDA grounding, barcode lookups and validation are all real.
 // Run: node scripts/mock-service.mjs, then EXPO_PUBLIC_ANALYSIS_URL=http://localhost:3001 npx expo start --web
@@ -116,13 +117,13 @@ async function fetchImpl(url, options) {
   return reply(plate);
 }
 
-const port = Number(process.env.PORT || 3001);
+const { host, port } = serviceRuntime();
 createApp({
   apiKey: 'mock',
   provider: 'openrouter',
   model: 'mock',
   fetchImpl,
   usdaKey: process.env.USDA_API_KEY,
-}).listen(port, '0.0.0.0', () =>
+}).listen(port, host, () =>
   console.log(`Carbsy mock service (canned AI, real USDA data): http://localhost:${port}`),
 );

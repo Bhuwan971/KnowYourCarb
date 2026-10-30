@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { request as httpRequest } from 'node:http';
 import assert from 'node:assert/strict';
 import { createApp } from '../server/index.mjs';
 import { validatePerception, validateImage } from '../server/analysis.mjs';
@@ -207,6 +208,92 @@ test('origin restrictions, invalid JSON, and upstream errors are surfaced safely
       });
       assert.equal(response.status, 502);
       assert.ok(!(await response.text()).includes('private provider details'));
+    },
+  );
+});
+
+test('global scan concurrency is bounded and released after cancellation', async () => {
+  let started = 0;
+  let ready;
+  const bothStarted = new Promise((resolve) => {
+    ready = resolve;
+  });
+  await withServer(
+    {
+      apiKey: 'test',
+      fetchImpl: async () => {
+        if (++started === 2) ready();
+        return new Promise(() => {});
+      },
+    },
+    async (url) => {
+      const controllers = [new AbortController(), new AbortController()];
+      const init = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image, mimeType: 'image/jpeg' }),
+      };
+      const pending = controllers.map((c) =>
+        fetch(`${url}/analyze`, { ...init, signal: c.signal }).catch(() => {}),
+      );
+      await bothStarted;
+      try {
+        const response = await fetch(`${url}/analyze`, init);
+        assert.equal(response.status, 429);
+        assert.equal(response.headers.get('Retry-After'), '5');
+        assert.equal(started, 2);
+      } finally {
+        controllers.forEach((c) => c.abort());
+        await Promise.all(pending);
+      }
+      // Observe cancellation reaching the server before checking that a slot is reusable.
+      for (let i = 0; i < 20; i++) {
+        const response = await fetch(`${url}/analyze`, { ...init, body: '{' });
+        if (response.status === 400) return;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      assert.fail('Cancelled uploads did not release their scan slots');
+    },
+  );
+});
+
+test('unfinished uploads time out without calling the provider and release capacity', async () => {
+  let calls = 0;
+  await withServer(
+    {
+      apiKey: 'test',
+      uploadTimeoutMs: 25,
+      fetchImpl: async () => {
+        calls++;
+      },
+    },
+    async (url) => {
+      const status = await new Promise((resolve, reject) => {
+        const req = httpRequest(
+          `${url}/analyze`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          },
+          (res) => {
+            res.resume();
+            res.on('end', () => {
+              resolve(res.statusCode);
+              req.destroy();
+            });
+          },
+        );
+        req.on('error', reject);
+        req.write('{');
+      });
+      assert.equal(status, 408);
+      assert.equal(calls, 0);
+      const response = await fetch(`${url}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{',
+      });
+      assert.equal(response.status, 400);
     },
   );
 });

@@ -1,6 +1,6 @@
 # Contributing
 
-Use Node 22.13 or newer (Node 24 recommended) and npm. Clone the repository, run `npm ci`, copy `.env.example` to `.env`, then run `npm start`. Sample meals and manual entry work without provider credentials. AI setup is documented in the README; use your own credentials and Infisical project.
+Use Node 22.13 or newer (Node 24 recommended) and npm. Clone the repository, run `npm ci`, copy `.env.example` to `.env`, then run `npm start` for localhost or `npm run start:lan` for a phone on trusted Wi-Fi. Sample meals and manual entry work without provider credentials. AI setup is documented in the README; use your own credentials and Infisical project.
 
 Before submitting a pull request, run:
 
