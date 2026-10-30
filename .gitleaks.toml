@@ -1,0 +1,10 @@
+title = "Carbsy secret scanning"
+
+[extend]
+useDefault = true
+
+# This exact string is an AsyncStorage namespace, not an authentication key.
+[[allowlists]]
+description = "Public local journal storage namespace"
+regexTarget = "secret"
+regexes = ['''^carbsy\.journal\.v1$''']

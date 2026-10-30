@@ -31,8 +31,25 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
 .env
+.env.*
+!.env.example
+.infisical.json
+
+# Credentials, signing material, local exports and logs
+.npmrc
+.netrc
+credentials.json
+service-account*.json
+*.keystore
+*.pfx
+*.cer
+*.ipa
+*.apk
+*.aab
+*.log
+exports/
+backups/
 .npm-cache/
 scaffold/
 test-results/

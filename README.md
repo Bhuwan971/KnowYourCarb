@@ -4,9 +4,11 @@ A camera-first carb journal with a playful little personality. Built from scratc
 
 ## Try it on your phone
 
-Dependencies are installed. In this folder, run:
+Install [Node.js](https://nodejs.org/) 22.13 or newer (Node 24 recommended), then run these commands in your clone:
 
 ```sh
+npm ci
+cp .env.example .env
 npm start
 ```
 
@@ -41,14 +43,14 @@ The photo service supports OpenRouter and direct Gemini. With either provider, c
 
 ### Recommended: Infisical secrets
 
-The Infisical CLI is installed on this computer. For other machines, follow its [installation guide](https://infisical.com/docs/cli/overview). In this project folder:
+Install the Infisical CLI using its [installation guide](https://infisical.com/docs/cli/overview). In this project folder:
 
 ```sh
 infisical login
 infisical init
 ```
 
-Select your Infisical project. This creates a `.infisical.json` project link containing no secrets. Alternatively, copy `.infisical.json.example` to `.infisical.json` and replace its project ID after logging in.
+Select your Infisical project. This creates an ignored `.infisical.json` project link. Keep your own project link local. Alternatively, copy `.infisical.json.example` to `.infisical.json` and replace its project ID after logging in.
 
 Add these values in your Infisical project's **dev** environment at **/**:
 
@@ -166,3 +168,9 @@ The SDK 57 dependency tree currently reports npm audit advisories inherited thro
 - `tests/`: calculation, server, and browser tests
 
 Design: warm cream, soft lilac, lime accents, DM Sans, Space Grotesk, and a hand-drawn SVG bean mascot. Animations respect reduced-motion settings; haptics are optional. Food preview photos are bundled locally from Unsplash ([salad](https://images.unsplash.com/photo-1546069901-ba9599a7e63c), [breakfast](https://images.unsplash.com/photo-1525351484163-7529414344d8), [berries](https://images.unsplash.com/photo-1464965911861-746a04b4bca6)). Sample food values are illustrative and don't claim to describe the stock photos accurately.
+
+## Contributing, security, and licensing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks and [SECURITY.md](SECURITY.md) for private vulnerability reporting and secret handling. The source uses the existing [MIT license](LICENSE); third-party data, photos, and fonts retain their own terms in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The [publication review](docs/open-source-review.md) records the review scope and remaining release considerations. This repository is a local development application; publishing the source does not make its unauthenticated analysis service suitable for public hosting.

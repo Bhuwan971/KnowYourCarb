@@ -54,5 +54,9 @@
     "start:infisical": "node --env-file-if-exists=.env scripts/start-dev.mjs --infisical",
     "server:infisical": "node --env-file-if-exists=.env scripts/start-dev.mjs --infisical --server-only"
   },
-  "private": true
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13.0"
+  }
 }
